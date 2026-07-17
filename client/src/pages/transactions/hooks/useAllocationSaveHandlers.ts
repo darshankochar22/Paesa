@@ -208,48 +208,11 @@ export function useAllocationSaveHandlers(
       }
 
       form.setBankDetails(details);
-
-      if (details.transaction_type === 'Cash') {
-        const shouldSkipDenomination =
-          effectiveVoucherType === 'Receipt' ||
-          (alloc && alloc.type === 'bankDetails' && alloc.allowCash === false);
-
-        if (shouldSkipDenomination) {
-          form.setActiveAllocation(null);
-          if (alloc && 'rowId' in alloc) {
-            const isContraDouble =
-              effectiveVoucherType === 'Contra' && form.contraEntryMode === 'double';
-            const isReceiptDouble =
-              effectiveVoucherType === 'Receipt' && form.receiptEntryMode === 'double';
-            const isPayDouble =
-              effectiveVoucherType === 'Payment' && form.paymentEntryMode === 'double';
-            const list = isContraDouble
-              ? form.contraDoubleRows
-              : isReceiptDouble
-                ? form.receiptDoubleRows
-                : isPayDouble
-                  ? form.paymentDoubleRows
-                  : form.particulars;
-            const rowIdx = list.findIndex((r) => r.id === alloc.rowId);
-            proceedToNextRow(rowIdx);
-          }
-          return;
-        }
-
-        form.setActiveAllocation({
-          type: 'cashDenomination',
-          rowId: alloc && 'rowId' in alloc ? alloc.rowId : '',
-          ledgerId: details.ledger_id,
-          ledgerName:
-            details.bank_name ||
-            (form.activeAllocation && 'ledgerName' in form.activeAllocation
-              ? form.activeAllocation.ledgerName
-              : '') ||
-            'Cash',
-          amount: details.amount,
-          initialDetails: form.cashDenominations,
-        });
-        return;
+      // Cash Denominations are now captured inside the Bank Allocation popup
+      // (Tally's nested sub-screen) and arrive on the payload — persist them and
+      // continue; there is no separate denomination popup to open.
+      if (details.cash_denominations) {
+        form.setCashDenominations(details.cash_denominations);
       }
 
       form.setActiveAllocation(null);

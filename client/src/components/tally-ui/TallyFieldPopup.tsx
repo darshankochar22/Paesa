@@ -56,6 +56,14 @@ interface TallyFieldPopupProps {
   /** Box width in px. Tally sizes each pop-up to its fields; default suits the
    *  6-field dispatch/receipt forms. */
   width?: number;
+  /** Optional min box height (px or CSS length). Tally draws some sub-screens
+   *  (Bank Allocations) as a large panel with the fields anchored at the top and
+   *  empty space below — pass e.g. `'70vh'` for that. Omit for content-height. */
+  minHeight?: number | string;
+  /** Suspend this popup's own keyboard handling (Enter-nav + Ctrl+A) while a
+   *  NESTED popup is open over it — e.g. Bank Allocations opening Cash
+   *  Denominations. Keeps Enter/Ctrl+A driving the child, not this box. */
+  disabled?: boolean;
   children: ReactNode;
 }
 
@@ -64,6 +72,8 @@ export function TallyFieldPopup({
   onClose,
   onAccept,
   width = 600,
+  minHeight,
+  disabled = false,
   children,
 }: TallyFieldPopupProps) {
   const boxRef = useRef<HTMLDivElement>(null);
@@ -83,9 +93,9 @@ export function TallyFieldPopup({
     if (fields[0]) focusField(fields[0]);
   }, []);
 
-  // Ctrl+A accepts from anywhere (Tally).
+  // Ctrl+A accepts from anywhere (Tally). Suspended while a nested popup is open.
   useEffect(() => {
-    if (!onAccept) return;
+    if (!onAccept || disabled) return;
     const handler = (e: KeyboardEvent) => {
       if (e.ctrlKey && (e.key === 'a' || e.key === 'A')) {
         e.preventDefault();
@@ -94,12 +104,13 @@ export function TallyFieldPopup({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onAccept]);
+  }, [onAccept, disabled]);
 
   // Enter → next field; Enter on the last field → accept. Skips any Enter a
   // field already handled itself (defaultPrevented) and any modified Enter
   // (Shift+Enter still inserts a newline in a textarea).
   const handleEnterNav = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (disabled) return;
     if (e.key !== 'Enter' || e.defaultPrevented) return;
     if (e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
     const target = e.target as HTMLElement;
@@ -125,7 +136,12 @@ export function TallyFieldPopup({
         ref={boxRef}
         onKeyDown={handleEnterNav}
         className="bg-white border border-gray-200 shadow-md flex flex-col"
-        style={{ width, maxWidth: 'calc(100vw - 32px)', maxHeight: 'calc(100vh - 32px)' }}
+        style={{
+          width,
+          minHeight,
+          maxWidth: 'calc(100vw - 32px)',
+          maxHeight: 'calc(100vh - 32px)',
+        }}
       >
         {/* Title — bold, centred, thin divider (Tally sub-form header) */}
         <div className="shrink-0 text-center text-[13px] font-bold text-black py-1 border-b border-gray-200">

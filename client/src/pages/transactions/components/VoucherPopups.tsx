@@ -543,6 +543,8 @@ export default function VoucherPopups({
           ledgerName={form.activeAllocation.ledgerName}
           amount={form.activeAllocation.amount}
           initialDetails={form.bankDetails}
+          initialCashDenominations={form.cashDenominations}
+          enableCashDenomination={effectiveVoucherType !== 'Receipt'}
           allowCash={
             form.activeAllocation.type === 'bankDetails'
               ? form.activeAllocation.allowCash !== false

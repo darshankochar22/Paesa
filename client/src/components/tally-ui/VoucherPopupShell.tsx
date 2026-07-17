@@ -164,6 +164,7 @@ export function VoucherPopupShell({
             </button>
             {onAccept && (
               <button
+                data-popup-accept
                 onClick={onAccept}
                 className="text-sm px-5 py-1.5 bg-black text-white hover:bg-black/80"
               >
