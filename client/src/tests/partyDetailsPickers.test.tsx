@@ -192,6 +192,35 @@ describe('Party Details — list-backed fields', () => {
     expect(buyer('name').value).toBe('SBI Cash Credit Account');
   });
 
+  // Ctrl+A is Tally's accept. A field's list is open almost all the time in this
+  // popup, so it must accept through an open list too — it used to do nothing.
+  it('Ctrl+A accepts the form while a list is open', async () => {
+    const onSave = vi.fn();
+    renderPopup(onSave);
+    await waitFor(() => expect(panelTitle()).toContain('List of Ledger Accounts'));
+
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'a', ctrlKey: true });
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(onSave.mock.calls[0][0].supplier_name).toBe('SBI Cash Credit Account');
+    expect(onSave.mock.calls[0][0].state).toBe('Chhattisgarh');
+  });
+
+  it('Ctrl+A accepts the values picked from the lists', async () => {
+    const onSave = vi.fn();
+    const { container } = renderPopup(onSave);
+    await waitFor(() => expect(panelTitle()).toContain('List of Ledger Accounts'));
+
+    fireEvent.keyDown(window, { key: 'ArrowDown' }); // → XYZ Suppliers
+    await enter();
+    await waitFor(() => expect(field(container, 'buyer.name').value).toBe('XYZ Suppliers'));
+
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'a', ctrlKey: true });
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(onSave.mock.calls[0][0].supplier_name).toBe('XYZ Suppliers');
+    expect(onSave.mock.calls[0][0].state).toBe('Gujarat');
+  });
+
   it('typing in the panel filters, and Escape closes the panel without picking', async () => {
     const { container } = renderPopup();
     await waitFor(() => expect(panelTitle()).toContain('List of Ledger Accounts'));

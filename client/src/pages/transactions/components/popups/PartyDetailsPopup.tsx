@@ -512,8 +512,12 @@ export default function PartyDetailsPopup({
     else onClose();
   };
 
+  // Ctrl+A accepts from anywhere (Tally), including with a list open — a field's
+  // list is up almost all the time here, so gating on it would make Ctrl+A look
+  // dead. The open list is simply abandoned: only picked values are saved.
   const handleAccept = () => {
-    if (!picker) handleSave();
+    setPicker(null);
+    handleSave();
   };
 
   // What the open picker shows: its title, rows, and the value to land on.
