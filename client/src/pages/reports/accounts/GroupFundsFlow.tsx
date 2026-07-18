@@ -75,8 +75,9 @@ export default function GroupFundsFlow() {
       .finally(() => setLoading(false));
   }, [groupId, selectedCompany?.company_id, activeFY?.fy_id]);
 
-  // Drill: child group → recurse (Group Summary); ledger → Ledger Monthly
-  // Summary; Closing Stock → Stock Group Summary (inventory).
+  // Drill: child group → recurse (Group Summary); ledger → Ledger Vouchers
+  // directly (Tally opens vouchers, not a monthly summary, from Funds Flow);
+  // Closing Stock → Stock Group Summary (inventory).
   const openRow = React.useCallback(
     (r: FlowRow) => {
       if (r.type === 'group' && r.group_id != null) {
@@ -84,7 +85,7 @@ export default function GroupFundsFlow() {
       } else if (r.type === 'stock') {
         navigate('/reports/inventory/stock-summary-drill');
       } else if (r.type === 'ledger' && r.ledger_id != null && r.ledger_id > 0) {
-        navigate(`/reports/accounts/ledger-summary/${r.ledger_id}`);
+        navigate(`/reports/accounts/ledger?ledger_id=${r.ledger_id}`);
       }
     },
     [navigate],

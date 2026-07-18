@@ -90,11 +90,14 @@ const ledgerReport = async (company_id, fy_id, ledger_id, from_date, to_date) =>
       runningBalance += e.type === 'Dr' ? e.amount : -e.amount;
 
       const entries = entryMap[e.voucher_id] || [];
-      // Tally names the single opposing ledger in Particulars. When a voucher
-      // posts to MORE than one counter-ledger (e.g. a bank payment split across
-      // several fixed-asset accounts), it shows "(as per details)" and lists the
-      // individual counter-ledgers as an indented breakdown below the row.
-      const others = entries.filter((ent) => ent.ledger_id !== ledger_id);
+      // Tally names the CONTRA ledger in Particulars — the line(s) on the
+      // opposite Dr/Cr side from this ledger's own entry, not every other line
+      // in the voucher. A fixed-asset purchase paid from the bank posts several
+      // asset debits against one bank credit; opening the Air Conditioner (Dr)
+      // ledger shows just "HDFC Bank" (the Cr side) — the sibling asset debits
+      // are NOT contras. Only when MORE than one ledger sits on the opposite
+      // side does Tally show "(as per details)" with the indented breakdown.
+      const others = entries.filter((ent) => ent.ledger_id !== ledger_id && ent.type !== e.type);
       let particulars = '';
       let details = null;
       if (others.length === 1) {
