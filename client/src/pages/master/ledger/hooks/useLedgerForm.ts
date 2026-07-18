@@ -470,7 +470,16 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
 
   const setField =
     (key: keyof LedgerType) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-      setForm((f) => ({ ...f, [key]: e.target.value }));
+      setForm((f) => {
+        let value = e.target.value;
+        // GSTIN is always uppercase, regardless of how it's typed
+        if (key === 'gstin') value = value.toUpperCase();
+        // Mailing name mirrors the ledger name until it's edited independently
+        if (key === 'name' && (f.mailing_name || '') === (f.name || '')) {
+          return { ...f, name: value, mailing_name: value };
+        }
+        return { ...f, [key]: value };
+      });
 
   const setNumber = (key: keyof LedgerType) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value === '' ? 0 : Number(e.target.value) }));

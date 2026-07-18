@@ -220,7 +220,10 @@ export default function GSTStatutoryDetails({
                 <select
                   className={selectCls}
                   value={form.taxability_type || 'Taxable'}
-                  onChange={(e) => setVal('taxability_type', e.target.value)}
+                  onChange={(e) => {
+                    setVal('taxability_type', e.target.value);
+                    if (e.target.value !== 'Taxable') setVal('gst_rate', '0');
+                  }}
                 >
                   <option value="Taxable">Taxable</option>
                   <option value="Exempt">Exempt</option>
@@ -228,7 +231,7 @@ export default function GSTStatutoryDetails({
                   <option value="Non-GST">Non-GST</option>
                 </select>
               </FormRow>
-              {form.taxability_type === 'Taxable' && (
+              {(form.taxability_type || 'Taxable') === 'Taxable' && (
                 <FormRow
                   label="GST Rate"
                   labelWidth="w-52"

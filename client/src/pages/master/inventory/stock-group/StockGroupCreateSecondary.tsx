@@ -934,7 +934,14 @@ export default function StockGroupCreateSecondary() {
               <select
                 className={selectCls}
                 value={form.taxability_type}
-                onChange={setField('taxability_type')}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setForm((f) => ({
+                    ...f,
+                    taxability_type: val,
+                    gst_rate: val === 'Taxable' ? f.gst_rate : '0',
+                  }));
+                }}
               >
                 <option value="as_per_company">As per Company/Stock Group</option>
                 <option value="Taxable">Taxable</option>
@@ -944,25 +951,27 @@ export default function StockGroupCreateSecondary() {
               </select>
             </FormRow>
 
-            <FormRow
-              label="GST Rate"
-              labelWidth="w-56"
-              className="flex items-center min-h-[26px] pl-4"
-            >
-              <div className="flex items-center gap-1">
-                <input
-                  className={inputCls}
-                  style={{ width: '60px' }}
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={form.gst_rate}
-                  onChange={setField('gst_rate')}
-                />
-                <span className="text-sm text-zinc-400">%</span>
-              </div>
-            </FormRow>
+            {form.taxability_type === 'Taxable' && (
+              <FormRow
+                label="GST Rate"
+                labelWidth="w-56"
+                className="flex items-center min-h-[26px] pl-4"
+              >
+                <div className="flex items-center gap-1">
+                  <input
+                    className={inputCls}
+                    style={{ width: '60px' }}
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={form.gst_rate}
+                    onChange={setField('gst_rate')}
+                  />
+                  <span className="text-sm text-zinc-400">%</span>
+                </div>
+              </FormRow>
+            )}
           </div>
           <div className="flex-1" />
         </div>
