@@ -12,7 +12,8 @@ module.exports = {
   getFilingInfo: (e, payload) => s.getFilingInfo(payload.company_id, payload),
   requestOtp: (e, { company_id, gstin }) => s.requestOtp(company_id, { gstin }),
   authenticate: (e, payload) => s.authenticate(payload.company_id, payload),
-  requestEvc: (e, { company_id }) => s.requestEvc(company_id),
+  requestEvc: (e, { company_id, gstin, return_type }) =>
+    s.requestEvc(company_id, { gstin, return_type }),
   getReturnStatus: (e, payload) => s.getReturnStatus(payload.company_id, payload),
 
   // ---- GST portal read/download surface (gstPortalService) ----

@@ -16,6 +16,7 @@ const { resolveStateCode, resolveTaxRate, computeVoucherTaxLines } = require('./
 // filed payload and the on-screen "Included" count agree. A Credit Note against a supplier
 // (purchase return) is inward and must NOT file outward; a Debit Note against a customer is outward.
 const { isOutwardVoucher, isNote } = require('./reconciliation/direction');
+const { buildDocIssue } = require('./docIssue');
 
 // Inter-state B2C invoices at or above this value are reported invoice-wise (B2CL/CDNUR),
 // smaller ones net into B2CS. Notification 12/2024-Central Tax (Rule 59(4)) cut this from
@@ -118,6 +119,19 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
           AND v.date >= ${startDate} AND v.date < ${endDate}
           ${regFilter}
           ORDER BY v.date ASC`,
+    );
+
+    // 2b. Table 13 (Documents Issued) reports CANCELLED documents too, so it needs its
+    // own fetch — the query above filters them out.
+    const docIssueRows = await db.all(
+      sql`SELECT v.voucher_number, v.voucher_type, v.is_cancelled, pg.name AS party_group
+          FROM ${vouchers} v
+          LEFT JOIN ${ledgers} l ON l.ledger_id = v.party_ledger_id
+          LEFT JOIN groups pg ON pg.group_id = l.group_id
+          WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id}
+          AND COALESCE(v.is_optional, 0) = 0 AND v.voucher_type != 'Memorandum'
+          AND v.date >= ${startDate} AND v.date < ${endDate}
+          ${regFilter}`,
     );
 
     const b2b = [];
@@ -716,6 +730,11 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
         data: hsnList,
       },
     };
+
+    // Table 13 — omitted entirely when no documents were issued (the portal rejects an
+    // empty doc_issue node rather than treating it as "nothing to report").
+    const docIssue = buildDocIssue(docIssueRows);
+    if (docIssue) payload.doc_issue = docIssue;
 
     // Persist the snapshot only for the company-wide return. A registration-scoped
     // computation is a drill-down view — persisting it would corrupt the company-wide

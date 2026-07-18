@@ -211,12 +211,14 @@ const authenticate = async (company_id, { gstin, otp } = {}) => {
 };
 
 // Request an EVC OTP for the actual filing (separate from the login OTP above).
-const requestEvc = async (company_id, { gstin } = {}) => {
+// return_type ("GSTR1" | "GSTR3B") maps to the gstr query Sandbox's EVC endpoint requires.
+const requestEvc = async (company_id, { gstin, return_type } = {}) => {
   const provider = getPortalProvider();
   if (provider === 'sandbox') {
     const reg = await resolveReg(company_id, gstin);
     const pan = panOf((reg && reg.gstin) || getSandboxConfig()?.gstin || '');
-    const r = await sbx.gst.requestEvcOtp(pan);
+    const gstr = String(return_type || 'GSTR3B').toUpperCase() === 'GSTR1' ? 'gstr-1' : 'gstr-3b';
+    const r = await sbx.gst.requestEvcOtp(pan, gstr);
     return r.ok
       ? { success: true, message: 'EVC OTP sent to the taxpayer’s registered mobile.' }
       : { success: false, error: r.error };

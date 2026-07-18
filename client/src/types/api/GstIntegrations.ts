@@ -206,6 +206,7 @@ export interface GstIntegrationsAPI {
     }) => Promise<{ success: boolean; error?: string }>;
     requestEvc: (
       company_id: number,
+      opts?: { gstin?: string; return_type?: 'GSTR1' | 'GSTR3B' },
     ) => Promise<{ success: boolean; message?: string; error?: string }>;
     getReturnStatus: (p: { company_id: number; return_period: string }) => Promise<ApiResult>;
     getFilings: (
