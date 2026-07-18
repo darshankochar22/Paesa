@@ -115,6 +115,8 @@ function getWhitebooksConfig() {
 //   SANDBOX_API_VERSION         defaults to 1.0.0
 //   SANDBOX_GSTIN               taxpayer GSTIN (falls back to GST_GSTIN)
 //   SANDBOX_EINV_USERNAME/_PASSWORD   NIC e-Invoice API user (for e-Invoice sub-session)
+//   SANDBOX_EWAY_USERNAME/_PASSWORD   NIC e-Way Bill API user (falls back to the EINV user —
+//                                     NIC allows one API user across both products)
 function getSandboxConfig() {
   // Activated purely by key presence — independent of GST_PROVIDER — so the GST reports can
   // read real portal data via Sandbox while e-Invoice/e-Way stay on their own provider.
@@ -136,6 +138,8 @@ function getSandboxConfig() {
     gstin: (process.env.SANDBOX_GSTIN || process.env.GST_GSTIN || '').trim(),
     einvUsername: (process.env.SANDBOX_EINV_USERNAME || '').trim(),
     einvPassword: (process.env.SANDBOX_EINV_PASSWORD || '').trim(),
+    ewayUsername: (process.env.SANDBOX_EWAY_USERNAME || '').trim(),
+    ewayPassword: (process.env.SANDBOX_EWAY_PASSWORD || '').trim(),
   };
 }
 

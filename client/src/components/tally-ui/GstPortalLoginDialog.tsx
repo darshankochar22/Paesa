@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useEscape } from '@/hooks/useEscape';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
+import NotificationBanner from '@/components/ui/NotificationBanner';
 import type { IntegrationStatus } from '@/types/api/GstIntegrations';
 import type { GSTRegistrationType } from '@/types/entities/GSTRegistration';
 
@@ -20,8 +20,130 @@ interface GstPortalLoginDialogProps {
 // are resolved server-side from gst_registrations.
 type Step = 'list' | 'confirm' | 'otp';
 
+const OTP_LEN = 6;
+const RESEND_COOLDOWN = 30; // seconds
+
 const regName = (r: GSTRegistrationType) =>
   (r.trade_name || r.legal_name || '').trim() || 'GST Registration';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Segmented OTP entry — one box per digit, driven by a single compact string.
+// Focus is redirected to the first empty box, so the value can never develop
+// interior gaps (which would silently shift digits left on join).
+// ─────────────────────────────────────────────────────────────────────────────
+function OtpBoxes({
+  value,
+  onChange,
+  onComplete,
+  disabled,
+  firstRef,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  /** Fires with the finished code — passed explicitly because the parent's `otp`
+   *  state has not re-rendered yet at this point (reading it would be stale). */
+  onComplete: (code: string) => void;
+  disabled?: boolean;
+  firstRef?: React.RefObject<HTMLInputElement | null>;
+}) {
+  const refs = useRef<Array<HTMLInputElement | null>>([]);
+  const chars = Array.from({ length: OTP_LEN }, (_, i) => value[i] ?? '');
+
+  const focusAt = (i: number) => refs.current[Math.max(0, Math.min(OTP_LEN - 1, i))]?.focus();
+
+  const commit = (next: string[]) => {
+    const joined = next.join('').slice(0, OTP_LEN);
+    onChange(joined);
+    return joined;
+  };
+
+  const handleChange = (i: number, raw: string) => {
+    const digits = raw.replace(/\D/g, '');
+    const next = chars.slice();
+
+    if (!digits) {
+      next[i] = '';
+      commit(next);
+      return;
+    }
+
+    // One digit → set + advance. Several (paste / fast typing) → fill forward.
+    for (let k = 0; k < digits.length && i + k < OTP_LEN; k++) next[i + k] = digits[k];
+    const joined = commit(next);
+    const landed = Math.min(i + digits.length, OTP_LEN - 1);
+    focusAt(landed);
+    if (joined.length === OTP_LEN) onComplete(joined);
+  };
+
+  const handleKeyDown = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace') {
+      e.preventDefault();
+      const next = chars.slice();
+      if (next[i]) next[i] = '';
+      else if (i > 0) {
+        next[i - 1] = '';
+        focusAt(i - 1);
+      }
+      commit(next);
+      return;
+    }
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      focusAt(i - 1);
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      focusAt(i + 1);
+    } else if (e.key === 'Enter' && value.length === OTP_LEN) {
+      e.preventDefault();
+      onComplete(value);
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-center gap-2.5">
+      {chars.map((c, i) => (
+        <input
+          key={i}
+          ref={(el) => {
+            refs.current[i] = el;
+            if (i === 0 && firstRef) firstRef.current = el;
+          }}
+          value={c}
+          disabled={disabled}
+          inputMode="numeric"
+          maxLength={1}
+          autoComplete={i === 0 ? 'one-time-code' : 'off'}
+          aria-label={`OTP digit ${i + 1}`}
+          // Keep the string gap-free: clicking ahead of what's typed lands on the next empty
+          // box. Selecting the digit makes typing overwrite it rather than being blocked by
+          // maxLength.
+          onFocus={(e) => {
+            if (i > value.length) {
+              focusAt(value.length);
+              return;
+            }
+            e.currentTarget.select();
+          }}
+          // maxLength caps typed input at one char, so a pasted code needs its own handler.
+          onPaste={(e) => {
+            e.preventDefault();
+            const digits = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, OTP_LEN);
+            if (!digits) return;
+            const joined = commit(Array.from({ length: OTP_LEN }, (_, k) => digits[k] ?? ''));
+            focusAt(digits.length - 1);
+            if (joined.length === OTP_LEN) onComplete(joined);
+          }}
+          onChange={(e) => handleChange(i, e.target.value)}
+          onKeyDown={(e) => handleKeyDown(i, e)}
+          className={`h-12 w-11 rounded border text-center text-xl font-bold text-black outline-none transition-colors
+            ${c ? 'border-black' : 'border-zinc-300'}
+            focus:border-black focus:ring-2 focus:ring-black/10
+            disabled:bg-black/[0.03] disabled:text-black/30`}
+        />
+      ))}
+    </div>
+  );
+}
 
 export default function GstPortalLoginDialog({
   open,
@@ -37,6 +159,7 @@ export default function GstPortalLoginDialog({
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [cooldown, setCooldown] = useState(0);
   const otpRef = useRef<HTMLInputElement>(null);
 
   const refreshStatus = () =>
@@ -52,12 +175,12 @@ export default function GstPortalLoginDialog({
     setOtp('');
     setMsg(null);
     setErr(null);
+    setCooldown(0);
     refreshStatus();
     window.api.gstRegistration
       .getAll(companyId)
       .then((r) => setRegs((r?.success && r.gstRegistrations) || []))
       .catch(() => setRegs([]));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, companyId]);
 
   // Escape via the central stack: registered above the screen while open,
@@ -67,6 +190,13 @@ export default function GstPortalLoginDialog({
   useEffect(() => {
     if (step === 'otp') otpRef.current?.focus();
   }, [step]);
+
+  // Resend countdown.
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
 
   const configured = !!status?.configured;
   const activeGstin = status?.gstSession ? status?.activeGstin || null : null;
@@ -100,17 +230,22 @@ export default function GstPortalLoginDialog({
     const r = await window.api.gstFiling.requestOtp(companyId, selected.gstin);
     setBusy(false);
     if (r.success) {
+      setOtp('');
       setStep('otp');
-      setMsg('OTP sent. Enter it below.');
+      setCooldown(RESEND_COOLDOWN);
+      setMsg('OTP sent.');
     } else {
       setMsg(null);
       setErr(r.error || 'Could not send OTP');
     }
   };
 
-  const verify = async () => {
-    if (!otp.trim()) {
-      setErr('Enter the OTP.');
+  // `code` is passed by OtpBoxes on completion — the `otp` state is still one render
+  // behind at that moment, so never read it here without the argument.
+  const verify = async (code?: string) => {
+    const entered = (code ?? otp).trim();
+    if (entered.length !== OTP_LEN) {
+      setErr(`Enter all ${OTP_LEN} digits.`);
       return;
     }
     if (!selected?.gstin) return;
@@ -120,7 +255,7 @@ export default function GstPortalLoginDialog({
     const a = await window.api.gstFiling.authenticate({
       company_id: companyId,
       gstin: selected.gstin,
-      otp: otp.trim(),
+      otp: entered,
     });
     setBusy(false);
     if (a.success) {
@@ -130,6 +265,8 @@ export default function GstPortalLoginDialog({
     } else {
       setMsg(null);
       setErr(a.error || 'OTP verification failed');
+      setOtp('');
+      otpRef.current?.focus();
     }
   };
 
@@ -152,10 +289,9 @@ export default function GstPortalLoginDialog({
   };
 
   const factRow = (label: string, value: ReactNode) => (
-    <div className="flex items-center gap-2 px-3 py-1 text-xs">
-      <span className="w-36 text-black">{label}</span>
-      <span>:</span>
-      <span className="font-bold">{value}</span>
+    <div className="flex items-center gap-2 text-xs">
+      <span className="w-20 text-black/50">{label}</span>
+      <span className="font-semibold text-black">{value}</span>
     </div>
   );
 
@@ -163,22 +299,22 @@ export default function GstPortalLoginDialog({
     <button
       key={r.gst_id ?? r.gstin}
       onClick={() => pick(r)}
-      className="w-full flex items-center justify-between px-3 py-1.5 text-xs text-left hover:bg-black/[0.04] border-b border-gray-100"
+      className="w-full flex items-center justify-between gap-3 px-5 py-2.5 text-xs text-left hover:bg-black/[0.03] border-b border-zinc-100 transition-colors"
     >
-      <span className="flex items-center gap-2">
-        <span className="font-bold">{regName(r)}</span>
+      <span className="flex items-center gap-2 min-w-0">
+        <span className="font-semibold text-black truncate">{regName(r)}</span>
         {!r.gst_username && (
-          <span className="text-[10px] uppercase tracking-wide text-black border border-gray-300 px-1">
-            no portal username
+          <span className="shrink-0 text-[10px] uppercase tracking-wide text-black/50 border border-zinc-300 rounded px-1">
+            no username
           </span>
         )}
         {isActive && (
-          <span className="text-[10px] uppercase tracking-wide text-white bg-black px-1">
+          <span className="shrink-0 text-[10px] uppercase tracking-wide text-white bg-black rounded px-1.5">
             active
           </span>
         )}
       </span>
-      <span className="font-mono">{r.gstin || '—'}</span>
+      <span className="font-mono text-black/60 shrink-0">{r.gstin || '—'}</span>
     </button>
   );
 
@@ -186,69 +322,72 @@ export default function GstPortalLoginDialog({
     <div
       role="dialog"
       aria-label="GST Portal Login"
-      className="fixed inset-0 z-[10000] bg-black/[0.06] flex items-start justify-center"
+      className="fixed inset-0 z-[10000] bg-black/20 backdrop-blur-[1px] flex items-start justify-center"
     >
-      <div className="mt-24 w-[520px] bg-white border border-gray-200 shadow-2xl">
-        <div className="flex items-center justify-between bg-black text-white font-bold px-3 py-1.5 text-xs">
-          <span>GST Portal Login (GSTN Session)</span>
-          <button onClick={onClose} className="hover:text-black" aria-label="Close">
+      <div className="mt-24 w-[520px] bg-white border border-zinc-200 rounded shadow-2xl overflow-hidden animate-fade-in">
+        {/* Title bar */}
+        <div className="flex items-center justify-between bg-black text-white font-semibold px-5 py-2.5 text-xs">
+          <span className="uppercase tracking-wider">GST Portal Login</span>
+          <button
+            onClick={onClose}
+            className="text-white/60 hover:text-white transition-colors text-sm leading-none"
+            aria-label="Close"
+          >
             ✕
           </button>
         </div>
 
-        <div className="py-2 border-b border-gray-200">
+        {/* Session facts */}
+        <div className="flex items-center gap-6 px-5 py-3 border-b border-zinc-200 bg-black/[0.02]">
           {factRow('Provider', status?.provider || '—')}
           {factRow('Mode', status?.sandbox === false ? 'Production' : 'Sandbox')}
-          {factRow('Session', activeGstin ? `Active — ${activeGstin}` : 'Not logged in')}
+          {factRow('Session', activeGstin ? 'Active' : 'Not logged in')}
         </div>
 
         {!configured ? (
-          <div className="px-3 py-3 text-xs">
+          <div className="px-5 py-6 text-xs leading-5 text-black/70">
             GST portal connection is not configured. Set{' '}
-            <span className="font-bold">GST_PROVIDER=whitebooks</span> and the{' '}
-            <span className="font-bold">WHITEBOOKS_*</span> credentials in .env, then restart.
+            <span className="font-semibold text-black">GST_PROVIDER=whitebooks</span> and the{' '}
+            <span className="font-semibold text-black">WHITEBOOKS_*</span> credentials in .env, then
+            restart.
           </div>
         ) : step === 'list' ? (
-          <div className="text-xs">
-            <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-200 font-bold">
-              <span>List of GST Sessions</span>
-              <span>Registration Name / GSTIN</span>
+          <div>
+            <div className="px-5 pt-4 pb-2">
+              <div className="text-sm font-bold text-black">Choose a GST registration</div>
+              <p className="mt-1 text-xs text-black/50">
+                An OTP is sent to the mobile &amp; e-mail registered with it.
+              </p>
             </div>
             {regs.length === 0 ? (
-              <div className="px-3 py-3">
+              <div className="px-5 pb-5 text-xs text-black/70 leading-5">
                 No GST Registrations found for this company. Create one under Statutory → GST
                 Registration first.
               </div>
             ) : (
-              <div className="max-h-[320px] overflow-y-auto">
-                <div className="px-3 py-1 uppercase tracking-wide text-[10px] text-black bg-black/[0.03]">
-                  Active Sessions
+              <div className="max-h-[300px] overflow-y-auto border-t border-zinc-100">
+                <div className="px-5 py-1.5 uppercase tracking-wider text-[10px] font-semibold text-black/40 bg-black/[0.02]">
+                  Active
                 </div>
                 {activeRegs.length ? (
                   activeRegs.map((r) => sessionRow(r, true))
                 ) : (
-                  <div className="px-3 py-1 text-gray-400">None</div>
+                  <div className="px-5 py-2 text-xs text-black/30">None</div>
                 )}
-                <div className="px-3 py-1 uppercase tracking-wide text-[10px] text-black bg-black/[0.03]">
-                  Inactive Sessions
+                <div className="px-5 py-1.5 uppercase tracking-wider text-[10px] font-semibold text-black/40 bg-black/[0.02]">
+                  Inactive
                 </div>
                 {inactiveRegs.length ? (
                   inactiveRegs.map((r) => sessionRow(r, false))
                 ) : (
-                  <div className="px-3 py-1 text-gray-400">None</div>
+                  <div className="px-5 py-2 text-xs text-black/30">None</div>
                 )}
-              </div>
-            )}
-            {(msg || err) && (
-              <div className="px-3 py-2">
-                {msg && <div className="text-xs text-black">{msg}</div>}
-                {err && <div className="text-xs font-bold">{err}</div>}
               </div>
             )}
           </div>
         ) : step === 'confirm' ? (
           <div
-            className="px-3 py-4 text-xs"
+            className="px-5 py-6"
             onKeyDown={(e) => {
               if (e.key === 'Enter' && selected?.gst_username) {
                 e.preventDefault();
@@ -257,55 +396,77 @@ export default function GstPortalLoginDialog({
             }}
             tabIndex={0}
           >
-            <div className="font-bold mb-2">GST Login</div>
+            <div className="text-sm font-bold text-black">Send OTP</div>
             {selected?.gst_username ? (
-              <p className="leading-5">
-                Press Enter or click Send OTP to send an OTP to the registered mobile number and
-                e-mail for GST Username <span className="font-bold">‘{selected.gst_username}’</span>{' '}
-                and GST Registration{' '}
-                <span className="font-bold">
-                  ‘{regName(selected)} ({selected.gstin})’
-                </span>
-                .
-              </p>
+              <>
+                <p className="mt-2 text-xs leading-5 text-black/70">
+                  We’ll send a one-time password to the mobile number and e-mail registered for GST
+                  username <span className="font-semibold text-black">{selected.gst_username}</span>
+                  .
+                </p>
+                <div className="mt-4 border border-zinc-200 rounded px-4 py-3">
+                  <div className="text-xs font-semibold text-black">{regName(selected)}</div>
+                  <div className="mt-0.5 text-[11px] font-mono text-black/50">{selected.gstin}</div>
+                </div>
+              </>
             ) : (
-              <p className="leading-5">
+              <p className="mt-2 text-xs leading-5 text-black/70">
                 This registration has no GST Portal Username set. Add it on the registration
                 (Statutory → GST Registration) before logging in.
               </p>
             )}
-            {msg && <div className="text-xs text-black mt-2">{msg}</div>}
-            {err && <div className="text-xs font-bold mt-2">{err}</div>}
           </div>
         ) : (
-          <div className="px-3 py-4 flex flex-col gap-2">
-            <div className="text-xs">
-              OTP for{' '}
-              <span className="font-bold">
-                {selected ? `${regName(selected)} (${selected.gstin})` : ''}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-20 text-xs text-black">Enter OTP</span>
-              <Input
-                ref={otpRef}
+          /* ── OTP ─────────────────────────────────────────────────────────── */
+          <div className="px-5 pt-7 pb-6 flex flex-col items-center text-center">
+            <div className="text-sm font-bold text-black">Enter the OTP</div>
+            <p className="mt-2 text-xs leading-5 text-black/60 max-w-[380px]">
+              We sent a {OTP_LEN}-digit code to the mobile number and e-mail registered with{' '}
+              <span className="font-semibold text-black">{selected ? regName(selected) : ''}</span>
+            </p>
+            {selected?.gstin && (
+              <div className="mt-1 text-[11px] font-mono text-black/40">{selected.gstin}</div>
+            )}
+
+            <div className="mt-6">
+              <OtpBoxes
                 value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                placeholder="6-digit OTP"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    verify();
-                  }
+                onChange={(v) => {
+                  setErr(null);
+                  setOtp(v);
                 }}
+                onComplete={verify}
+                disabled={busy}
+                firstRef={otpRef}
               />
             </div>
-            {msg && <div className="text-xs text-black">{msg}</div>}
-            {err && <div className="text-xs font-bold">{err}</div>}
+
+            <div className="mt-5 text-[11px] text-black/50">
+              Didn’t receive it?{' '}
+              <button
+                onClick={sendOtp}
+                disabled={busy || cooldown > 0}
+                className="font-semibold text-black underline underline-offset-2 disabled:no-underline disabled:text-black/30"
+              >
+                {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend OTP'}
+              </button>
+            </div>
           </div>
         )}
 
-        <div className="flex justify-end gap-2 px-3 py-2 border-t border-gray-200 bg-white">
+        {/* Messages */}
+        {(err || msg) && (
+          <div className="px-5">
+            {err ? (
+              <NotificationBanner type="error" message={err} onDismiss={() => setErr(null)} />
+            ) : (
+              <div className="pb-3 text-xs text-black/50 text-center">{msg}</div>
+            )}
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="flex justify-end gap-2 px-5 py-3 border-t border-zinc-200">
           <Button variant="secondary" size="sm" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
@@ -342,14 +503,14 @@ export default function GstPortalLoginDialog({
           )}
 
           {configured && step === 'otp' && (
-            <>
-              <Button variant="secondary" size="sm" onClick={sendOtp} disabled={busy}>
-                Resend OTP
-              </Button>
-              <Button variant="primary" size="sm" onClick={verify} disabled={busy}>
-                Verify &amp; Login
-              </Button>
-            </>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => verify()}
+              disabled={busy || otp.length !== OTP_LEN}
+            >
+              {busy ? 'Verifying…' : 'Verify & Login'}
+            </Button>
           )}
         </div>
       </div>

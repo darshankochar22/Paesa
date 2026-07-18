@@ -858,7 +858,12 @@ contextBridge.exposeInMainWorld('api', {
     getFilingInfo: (payload) => invoke('gstFiling:getFilingInfo', payload),
     requestOtp: (company_id, gstin) => invoke('gstFiling:requestOtp', { company_id, gstin }),
     authenticate: (payload) => invoke('gstFiling:authenticate', payload),
-    requestEvc: (company_id) => invoke('gstFiling:requestEvc', { company_id }),
+    requestEvc: (company_id, opts = {}) =>
+      invoke('gstFiling:requestEvc', {
+        company_id,
+        gstin: opts.gstin,
+        return_type: opts.return_type,
+      }),
     getReturnStatus: (payload) => invoke('gstFiling:getReturnStatus', payload),
     // GST portal read/download surface — the whole /gstapis catalog.
     portalRequest: (payload) => invoke('gstFiling:portalRequest', payload),

@@ -62,6 +62,65 @@ export function posLabel(pos: any): string {
   return name ? `${code}-${name}` : String(pos ?? '');
 }
 
+// GSTN UQC code → description. The offline-tool / TallyPrime `hsn` sheet writes the
+// UQC as "CAN-CANS" (code-DESCRIPTION), while the portal JSON carries the bare code
+// ("CAN"). Only the sheet/CSV uses this map — never the JSON.
+const UQC_NAMES: Record<string, string> = {
+  BAG: 'BAGS',
+  BAL: 'BALE',
+  BDL: 'BUNDLES',
+  BKL: 'BUCKLES',
+  BOU: 'BILLIONS OF UNITS',
+  BOX: 'BOX',
+  BTL: 'BOTTLES',
+  BUN: 'BUNCHES',
+  CAN: 'CANS',
+  CBM: 'CUBIC METERS',
+  CCM: 'CUBIC CENTIMETERS',
+  CMS: 'CENTIMETERS',
+  CTN: 'CARTONS',
+  DOZ: 'DOZENS',
+  DRM: 'DRUMS',
+  GGK: 'GREAT GROSS',
+  GMS: 'GRAMMES',
+  GRS: 'GROSS',
+  GYD: 'GROSS YARDS',
+  KGS: 'KILOGRAMS',
+  KLR: 'KILOLITRE',
+  KME: 'KILOMETRE',
+  LTR: 'LITRES',
+  MLT: 'MILILITRE',
+  MTR: 'METERS',
+  MTS: 'METRIC TON',
+  NOS: 'NUMBERS',
+  PAC: 'PACKS',
+  PCS: 'PIECES',
+  PRS: 'PAIRS',
+  QTL: 'QUINTAL',
+  ROL: 'ROLLS',
+  SET: 'SETS',
+  SQF: 'SQUARE FEET',
+  SQM: 'SQUARE METERS',
+  SQY: 'SQUARE YARDS',
+  TBS: 'TABLETS',
+  TGM: 'TEN GROSS',
+  THD: 'THOUSANDS',
+  TON: 'TONNES',
+  TUB: 'TUBES',
+  UGS: 'US GALLONS',
+  UNT: 'UNITS',
+  YDS: 'YARDS',
+  OTH: 'OTHERS',
+};
+
+export function uqcLabel(uqc: any): string {
+  const code = String(uqc || 'OTH')
+    .trim()
+    .toUpperCase();
+  const name = UQC_NAMES[code];
+  return name ? `${code}-${name}` : code;
+}
+
 const r2 = (n: any) => Number(Number(n || 0).toFixed(2));
 
 // inv_typ code → the offline tool's Invoice/Note Type label.
@@ -73,6 +132,22 @@ const INV_TYPE_LABEL: Record<string, string> = {
   CBW: 'Intra-State supplies attracting IGST',
 };
 const invTypeLabel = (t: any) => INV_TYPE_LABEL[String(t || 'R')] || 'Regular';
+
+// Table 13 "Nature of Document" label per GSTN doc_num (server/gst/docIssue.js emits the code).
+const DOC_NUM_LABEL: Record<string, string> = {
+  '1': 'Invoices for outward supply',
+  '2': 'Invoices for inward supply from unregistered person',
+  '3': 'Revised Invoice',
+  '4': 'Debit Note',
+  '5': 'Credit Note',
+  '6': 'Receipt Voucher',
+  '7': 'Payment Voucher',
+  '8': 'Refund Voucher',
+  '9': 'Delivery Challan for job work',
+  '10': 'Delivery Challan for supply on approval',
+  '11': 'Delivery Challan in case of liquid gas',
+  '12': 'Delivery Challan in cases other than by way of supply (excluding at S no. 9 to 11)',
+};
 
 // exemp (table 8) description per supply-type code the server emits.
 const NIL_DESC: Record<string, string> = {
@@ -348,7 +423,7 @@ export function buildSections(payload: any): GstrSection[] {
   const hsnRows: Cell[][] = (payload.hsn?.data || []).map((x: any) => [
     S(x.hsn_sc),
     S(x.desc),
-    S(x.uqc || 'OTH'),
+    S(uqcLabel(x.uqc)),
     N(x.qty),
     N(r2(x.txval) + r2(x.iamt) + r2(x.camt) + r2(x.samt) + r2(x.csamt)),
     N(x.rt),
@@ -377,6 +452,26 @@ export function buildSections(payload: any): GstrSection[] {
       rows: hsnRows,
     });
 
+  // docs (table 13) — one row per document series, per nature of document.
+  const docsRows: Cell[][] = [];
+  (payload.doc_issue?.doc_det || []).forEach((det: any) =>
+    (det.docs || []).forEach((d: any) => {
+      docsRows.push([
+        S(DOC_NUM_LABEL[String(det.doc_num)] || String(det.doc_num)),
+        S(d.from),
+        S(d.to),
+        N(d.totnum),
+        N(d.cancel),
+      ]);
+    }),
+  );
+  if (docsRows.length)
+    out.push({
+      name: 'docs',
+      header: ['Nature of Document', 'Sr. No. From', 'Sr. No. To', 'Total Number', 'Cancelled'],
+      rows: docsRows,
+    });
+
   return out;
 }
 
@@ -384,8 +479,12 @@ export function buildSections(payload: any): GstrSection[] {
 export function buildPortalJson(payload: any): any {
   if (!payload) return {};
   const env: any = { gstin: payload.gstin, fp: payload.fp };
-  if (payload.gt != null) env.gt = r2(payload.gt);
-  env.cur_gt = r2(payload.cur_gt);
+  // gt / cur_gt are optional. Only state a turnover we actually computed — emitting
+  // `cur_gt: 0` declares a zero gross turnover to the portal, which is a false
+  // statement (the service currently has no turnover source). A real portal-accepted
+  // TallyPrime export omits both keys entirely.
+  if (r2(payload.gt)) env.gt = r2(payload.gt);
+  if (r2(payload.cur_gt)) env.cur_gt = r2(payload.cur_gt);
 
   const nonEmptyArr = (a: any) => Array.isArray(a) && a.length > 0;
   if (nonEmptyArr(payload.b2b)) env.b2b = payload.b2b;
@@ -397,6 +496,7 @@ export function buildPortalJson(payload: any): any {
   if (nonEmptyArr(payload.exp)) env.exp = payload.exp;
   if (nonEmptyArr(payload.nil?.inv)) env.nil = payload.nil;
   if (nonEmptyArr(payload.hsn?.data)) env.hsn = payload.hsn;
+  if (nonEmptyArr(payload.doc_issue?.doc_det)) env.doc_issue = payload.doc_issue;
   return env;
 }
 
