@@ -22,6 +22,9 @@ export interface VoucherSubmitCtx {
   // stock grid is replaced by Journal-style particulars ledgers, so validation and the
   // posted entries differ (party + particulars, no stock lines).
   isAccountingInvoice?: boolean;
+  // TallyPrime "As Voucher" mode (same four types): plain Dr/Cr rows like a double-entry
+  // Journal — no party, no stock lines; entries come straight from journalRows.
+  isAsVoucher?: boolean;
   // Called after a successful create-save to clear the form for the next entry.
   resetForm: () => void;
   // Hands a freshly-created voucher to the inline e-Invoice flow (owned by the
@@ -133,6 +136,17 @@ export function validateVoucher(ctx: VoucherSubmitCtx): string | null {
       'Material Out',
     ].includes(effectiveVoucherType)
   ) {
+    // As Voucher mode: validated like a double-entry Journal — no party required.
+    if (ctx.isAsVoucher) {
+      const filled = rows.journalRows.filter((r) => r.ledger && Number(r.amountRaw) > 0);
+      if (filled.length < 2) return 'At least two valid entries are required.';
+      const drTotal = filled.reduce((s, r) => s + (r.type === 'Dr' ? Number(r.amountRaw) : 0), 0);
+      const crTotal = filled.reduce((s, r) => s + (r.type === 'Cr' ? Number(r.amountRaw) : 0), 0);
+      if (Math.abs(drTotal - crTotal) > 0.01)
+        return `Debit (${drTotal.toFixed(2)}) and Credit (${crTotal.toFixed(2)}) totals must balance.`;
+      if (drTotal <= 0) return 'Amount must be greater than zero.';
+      return null;
+    }
     if (!rows.partyLedger) return 'Party A/c Name is required.';
     // Accounting Invoice mode: like a single-entry Journal — one or more particulars
     // ledgers with amounts, no stock item, no Sales/Purchase ledger picker.
@@ -263,6 +277,7 @@ export async function submitVoucher(ctx: VoucherSubmitCtx & { validate: () => st
     resetForm,
     onNewVoucherSaved,
     isAccountingInvoice,
+    isAsVoucher,
   } = ctx;
   const validationError = validate();
   if (validationError) {
@@ -443,7 +458,35 @@ export async function submitVoucher(ctx: VoucherSubmitCtx & { validate: () => st
         'Material Out',
       ].includes(effectiveVoucherType)
     ) {
-      if (isAccountingInvoice) {
+      if (isAsVoucher) {
+        // As Voucher (Ctrl+H): post exactly like a double-entry Journal — the typed
+        // Dr/Cr rows ARE the entries. No party line, no stock lines (inventory can
+        // still ride along via each row's Inventory Allocations sub-screen).
+        entries = rows.journalRows
+          .filter((r) => r.ledger && Number(r.amountRaw) > 0)
+          .map((r) => ({
+            ledger_id: r.ledger!.ledger_id,
+            ledger_name: r.ledger!.name,
+            type: r.type,
+            amount: Number(r.amountRaw),
+            currency: 'INR',
+            cost_centres: r.costCentres,
+          }));
+        stock_entries = rows.journalRows
+          .filter((r) => r.inventoryAllocations?.length)
+          .flatMap((r) =>
+            r.inventoryAllocations!.map((it) => ({
+              stock_item_id: it.stock_item_id,
+              item_name: it.item_name,
+              godown_id: it.godown_id ?? null,
+              unit_id: it.unit_id ?? null,
+              quantity: it.quantity,
+              rate: it.rate,
+              amount: it.amount,
+              batches: it.batches && it.batches.length ? it.batches : undefined,
+            })),
+          );
+      } else if (isAccountingInvoice) {
         // Accounting Invoice (Ctrl+H): post like a single-entry Journal — party on one
         // side for the full invoice value, the particulars ledgers on the opposite side
         // (each its own amount), plus the additional tax rows as entered. No stock lines.
@@ -726,18 +769,27 @@ export async function submitVoucher(ctx: VoucherSubmitCtx & { validate: () => st
         'Material Out',
       ].includes(effectiveVoucherType)
     ) {
-      if (rows.partyLedger && meta.partyBillReferences.length > 0) {
-        finalBillReferences = meta.partyBillReferences.map((b) => ({
-          ...b,
-          ledger_id: rows.partyLedger!.ledger_id,
-        }));
+      if (isAsVoucher) {
+        // As Voucher rows are journal rows — carry their bill allocations directly.
+        finalBillReferences = rows.journalRows
+          .filter((r) => r.ledger && r.billReferences?.length)
+          .flatMap((r) => r.billReferences!.map((b) => ({ ...b, ledger_id: r.ledger!.ledger_id })));
+      } else {
+        if (rows.partyLedger && meta.partyBillReferences.length > 0) {
+          finalBillReferences = meta.partyBillReferences.map((b) => ({
+            ...b,
+            ledger_id: rows.partyLedger!.ledger_id,
+          }));
+        }
+        finalBillReferences = [
+          ...finalBillReferences,
+          ...rows.additionalEntries
+            .filter((p) => p.ledger && p.billReferences?.length)
+            .flatMap((p) =>
+              p.billReferences!.map((b) => ({ ...b, ledger_id: p.ledger!.ledger_id })),
+            ),
+        ];
       }
-      finalBillReferences = [
-        ...finalBillReferences,
-        ...rows.additionalEntries
-          .filter((p) => p.ledger && p.billReferences?.length)
-          .flatMap((p) => p.billReferences!.map((b) => ({ ...b, ledger_id: p.ledger!.ledger_id }))),
-      ];
     }
 
     // ── Final payload / API submission ──────────────────────────────────
@@ -862,7 +914,11 @@ export async function submitVoucher(ctx: VoucherSubmitCtx & { validate: () => st
         // ledger on the voucher row since no accounting entry is posted for it.
         sales_purchase_ledger_id: rows.salesPurchaseLedger?.ledger_id ?? null,
         is_accounting_voucher: isInventoryOnly || isOrderVoucher || isNonAccounting ? 0 : 1,
-        is_invoice: hasAccountingEntries ? 1 : 0,
+        // As Voucher mode is voucher-style, not an invoice (matches TallyPrime). The
+        // flag also tells the backend to store the typed Dr/Cr rows verbatim (no
+        // per-item GST recompute — there are no invoice items).
+        is_invoice: hasAccountingEntries && !isAsVoucher ? 1 : 0,
+        as_voucher_mode: isAsVoucher ? 1 : 0,
         is_inventory_voucher:
           isInventoryOnly || isOrderVoucher || hasAccountingEntries || stock_entries.length > 0
             ? 1

@@ -21,6 +21,7 @@ import { isVoucherTypeEnabled, type VoucherType } from '@/constants/voucherTypes
 import { computePanelItems, computePanelTitle } from './utils/voucherPanel';
 import { AlertBanner, PageTitleBar } from '../../components/ui';
 import LedgerListPanel from './components/LedgerListPanel';
+import ChangeVoucherModePopup from './components/popups/ChangeVoucherModePopup';
 import RightSidebar from './components/RightSidebar';
 import VoucherPopups from './components/VoucherPopups';
 import VoucherBody from './components/VoucherBody';
@@ -34,6 +35,26 @@ import { useVoucherQuickActions } from './hooks/useVoucherQuickActions';
 import TallyConfirm from '@/components/ui/TallyConfirm';
 import { useVoucherEnterNav } from './hooks/useVoucherEnterNav';
 import { focusFirstField } from './lib/voucherNav';
+
+// Change Voucher Mode (Ctrl+H) labels ⇄ internal invoiceMode values for the trade
+// vouchers (Sales/Purchase/Credit Note/Debit Note).
+const INVOICE_MODE_LABELS = {
+  item: 'Item Invoice',
+  accounting: 'Accounting Invoice',
+  voucher: 'As Voucher',
+  excise: 'Excise Invoice',
+  supplementary: 'Supplementary Invoice',
+} as const;
+const INVOICE_MODE_BY_LABEL: Record<
+  string,
+  'item' | 'accounting' | 'voucher' | 'excise' | 'supplementary'
+> = {
+  'Item Invoice': 'item',
+  'Accounting Invoice': 'accounting',
+  'As Voucher': 'voucher',
+  'Excise Invoice': 'excise',
+  'Supplementary Invoice': 'supplementary',
+};
 
 export default function Vouchers() {
   const navigate = useNavigate();
@@ -127,6 +148,7 @@ export default function Vouchers() {
   const [itemExcise, setItemExcise] = useState<ItemExciseState | null>(null);
   const [itemDescription, setItemDescription] = useState<ItemDescriptionState | null>(null);
   const [showOtherVouchers, setShowOtherVouchers] = useState(false);
+  const [showChangeMode, setShowChangeMode] = useState(false);
   const [subDropdownType, setSubDropdownType] = useState<string | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
@@ -389,6 +411,7 @@ export default function Vouchers() {
     setShowDebitNoteExcise(false);
     setShowOrderDetails(false);
     setShowDebitNoteDetails(false);
+    setShowChangeMode(false);
   }, [
     setShowDispatchDetails,
     setShowReceiptDetails,
@@ -439,6 +462,7 @@ export default function Vouchers() {
     showDebitNoteExcise ||
     showOrderDetails ||
     showDebitNoteDetails ||
+    showChangeMode ||
     !!subDropdownType;
 
   // Initial focus (Tally "start typing, no click"): when a voucher opens or its
@@ -469,6 +493,54 @@ export default function Vouchers() {
     form.ledgersLoading,
   ]);
 
+  // Change Voucher Mode (Ctrl+H): which modes the active voucher type offers and
+  // which one is current. Null → the voucher has only one mode; the sidebar button
+  // renders greyed out and Ctrl+H is a no-op, matching TallyPrime (e.g. Journal is
+  // always double entry — no mode choice). Trade vouchers lose Item Invoice when
+  // F11 maintain_inventory is off (the form is already forced to accounting mode
+  // and must stay there).
+  const currentEntryMode =
+    effectiveVoucherType === 'Receipt'
+      ? form.receiptEntryMode
+      : effectiveVoucherType === 'Payment'
+        ? form.paymentEntryMode
+        : form.contraEntryMode;
+  const changeModeInfo: { modes: string[]; current: string } | null = [
+    'Contra',
+    'Payment',
+    'Receipt',
+  ].includes(effectiveVoucherType)
+    ? {
+        modes: ['Double Entry', 'Single Entry'],
+        current: currentEntryMode === 'double' ? 'Double Entry' : 'Single Entry',
+      }
+    : ['Sales', 'Purchase', 'Credit Note', 'Debit Note'].includes(effectiveVoucherType) &&
+        isFeatureEnabled(features, 'maintain_inventory')
+      ? {
+          modes: [
+            'Item Invoice',
+            'Accounting Invoice',
+            'As Voucher',
+            'Excise Invoice',
+            'Supplementary Invoice',
+          ],
+          current:
+            INVOICE_MODE_LABELS[form.invoiceMode as keyof typeof INVOICE_MODE_LABELS] ??
+            'Item Invoice',
+        }
+      : null;
+
+  const applyChangeMode = (mode: string) => {
+    if (mode === 'Single Entry' || mode === 'Double Entry') {
+      const m = mode === 'Double Entry' ? 'double' : 'single';
+      if (effectiveVoucherType === 'Receipt') form.setReceiptEntryMode(m);
+      else if (effectiveVoucherType === 'Payment') form.setPaymentEntryMode(m);
+      else form.setContraEntryMode(m);
+    } else {
+      form.setInvoiceMode(INVOICE_MODE_BY_LABEL[mode] ?? 'item');
+    }
+  };
+
   // TallyPrime global shortcuts — registered in the CAPTURE phase so they fire
   // before any focused field/popup handler and win regardless of the current
   // voucher state. Every voucher is reachable directly from every other voucher.
@@ -493,16 +565,13 @@ export default function Vouchers() {
     { keys: 'Ctrl+F7', handler: () => switchVoucher('Physical Stock') },
     { keys: 'Ctrl+F8', handler: () => switchVoucher('Sales Order') },
     { keys: 'Ctrl+F9', handler: () => switchVoucher('Purchase Order') },
-    // Ctrl+H — TallyPrime "Change Mode" → toggle Item ⇄ Accounting Invoice for the trade
-    // vouchers only. NO-OP when F11 maintain_inventory is off (there is no stock grid, so
-    // the voucher is already forced to accounting mode and must stay there).
+    // Ctrl+H — TallyPrime "Change Mode" → opens the Change Voucher Mode popup (top
+    // center) listing the modes for the active voucher type. NO-OP for voucher types
+    // with a single mode.
     {
       keys: 'Ctrl+H',
       handler: () => {
-        if (!['Sales', 'Purchase', 'Credit Note', 'Debit Note'].includes(effectiveVoucherType))
-          return;
-        if (!isFeatureEnabled(features, 'maintain_inventory')) return;
-        form.setInvoiceMode((m: 'item' | 'accounting') => (m === 'item' ? 'accounting' : 'item'));
+        if (changeModeInfo) setShowChangeMode(true);
       },
     },
   ].map((b) => ({ ...b, capture: true, allowInInputs: true, allowInDialogs: true }));
@@ -1047,34 +1116,8 @@ export default function Vouchers() {
           }
           isOptional={form.isOptional}
           onOptionalToggle={() => form.setIsOptional((p: boolean) => !p)}
-          entryMode={
-            effectiveVoucherType === 'Receipt'
-              ? form.receiptEntryMode
-              : effectiveVoucherType === 'Payment'
-                ? form.paymentEntryMode
-                : effectiveVoucherType === 'Journal'
-                  ? form.journalEntryMode
-                  : form.contraEntryMode
-          }
-          onEntryModeChange={() => {
-            if (effectiveVoucherType === 'Receipt') {
-              form.setReceiptEntryMode((p: 'single' | 'double') =>
-                p === 'single' ? 'double' : 'single',
-              );
-            } else if (effectiveVoucherType === 'Payment') {
-              form.setPaymentEntryMode((p: 'single' | 'double') =>
-                p === 'single' ? 'double' : 'single',
-              );
-            } else if (effectiveVoucherType === 'Journal') {
-              form.setJournalEntryMode((p: 'single' | 'double') =>
-                p === 'single' ? 'double' : 'single',
-              );
-            } else {
-              form.setContraEntryMode((p: 'single' | 'double') =>
-                p === 'single' ? 'double' : 'single',
-              );
-            }
-          }}
+          hasChangeMode={!!changeModeInfo}
+          onChangeModeClick={() => setShowChangeMode(true)}
           onDateClick={() => setShowDatePicker(true)}
           onCompanyTaxRegistrationClick={() => setShowTaxRegistrationPopup(true)}
           onCreateLedger={() => navigate('/master/create/ledger')}
@@ -1086,6 +1129,15 @@ export default function Vouchers() {
       </div>
 
       {/* ── Popups ── */}
+
+      {showChangeMode && changeModeInfo && (
+        <ChangeVoucherModePopup
+          modes={changeModeInfo.modes}
+          currentMode={changeModeInfo.current}
+          onSelect={applyChangeMode}
+          onClose={() => setShowChangeMode(false)}
+        />
+      )}
 
       <VoucherPopups
         form={form}

@@ -57,6 +57,14 @@ export function computeCanAccept(form: any, effectiveVoucherType: string): boole
       'Material Out',
     ].includes(effectiveVoucherType)
   ) {
+    // As Voucher mode: plain Dr/Cr rows — same rule as a double-entry Journal
+    // (no party / stock / Sales-Purchase ledger).
+    if (form.isAsVoucher) {
+      const filled = form.journalRows.filter(
+        (r: any) => !!r.ledger && (Number(r.amountRaw) || 0) > 0,
+      );
+      return filled.length >= 2 && Math.abs(form.debitTotal - form.creditTotal) < 0.01;
+    }
     // Accounting Invoice mode: party + at least one particulars ledger with an amount,
     // and a positive total (no stock item / Sales-Purchase ledger required).
     if (form.isAccountingInvoice) {

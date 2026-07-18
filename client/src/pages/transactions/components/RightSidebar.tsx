@@ -14,8 +14,8 @@ export default function RightSidebar({
   onStatusChange,
   isOptional,
   onOptionalToggle,
-  entryMode,
-  onEntryModeChange,
+  hasChangeMode,
+  onChangeModeClick,
   onDateClick,
   onCompanyTaxRegistrationClick,
   onCreateLedger,
@@ -33,8 +33,8 @@ export default function RightSidebar({
   onStatusChange: () => void;
   isOptional: boolean;
   onOptionalToggle: () => void;
-  entryMode: 'single' | 'double';
-  onEntryModeChange: () => void;
+  hasChangeMode: boolean;
+  onChangeModeClick: () => void;
   onDateClick: () => void;
   onCompanyTaxRegistrationClick: () => void;
   onCreateLedger: () => void;
@@ -241,23 +241,22 @@ export default function RightSidebar({
         >
           <span className="text-gray-500">Ctrl+T</span>: {status === 'Post-Dated' ? '✓ ' : ''}
           Post-Dated
-          <span className="text-gray-500">Ctrl+T</span>: {status === 'Post-Dated' ? '✓ ' : ''}
-          Post-Dated
         </Button>
       </div>
 
-      {['Contra', 'Receipt', 'Journal', 'Payment'].includes(voucherType) && (
-        <div className="border-b border-gray-200">
-          <Button
-            variant="ghost"
-            onClick={onEntryModeChange}
-            className="w-full h-auto justify-start rounded-none px-2 py-1 text-xs font-normal text-black hover:bg-gray-100"
-          >
-            <span className="text-gray-500">H</span>: {entryMode === 'double' ? '✓ ' : ''}Double
-            Entry
-          </Button>
-        </div>
-      )}
+      {/* Greyed out (like TallyPrime) for voucher types with a single fixed mode,
+          e.g. Journal — always double entry, no mode choice. */}
+      <div className="border-b border-gray-200">
+        <Button
+          variant="ghost"
+          onClick={onChangeModeClick}
+          disabled={!hasChangeMode}
+          className="w-full h-auto justify-start rounded-none px-2 py-1 text-xs font-normal text-black hover:bg-gray-100 disabled:text-gray-300 disabled:bg-gray-100 disabled:opacity-100 disabled:cursor-not-allowed"
+        >
+          <span className={hasChangeMode ? 'text-gray-500' : 'text-gray-300'}>Ctrl+H</span>: Change
+          Mode
+        </Button>
+      </div>
 
       <div className="flex-1" />
 

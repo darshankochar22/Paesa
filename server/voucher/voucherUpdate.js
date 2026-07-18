@@ -149,6 +149,9 @@ module.exports = {
       // caller resent both entries and stock_entries (a full alter-form save).
       if (
         data.is_accounting_voucher &&
+        // "As Voucher" mode saves store the typed Dr/Cr rows verbatim — no per-item GST
+        // recompute (no invoice items). Mirrors the create path.
+        !data.as_voucher_mode &&
         ['Sales', 'Purchase', 'Credit Note', 'Debit Note'].includes(voucherType) &&
         data.entries !== undefined &&
         data.stock_entries !== undefined &&

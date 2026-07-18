@@ -81,10 +81,14 @@ export function useVoucherMeta({
 
   // Invoice entry mode (Sales/Purchase/Credit Note/Debit Note). 'item' = the stock-item
   // grid; 'accounting' = TallyPrime "Accounting Invoice" (Ctrl+H) where ledgers are
-  // picked with typed amounts (Journal-style), no stock grid. Non-trade vouchers ignore
-  // this. When F11 maintain_inventory is off the mode is forced to accounting (see
-  // useVoucherForm's derived isAccountingInvoice) regardless of this flag.
-  const [invoiceMode, setInvoiceMode] = useState<'item' | 'accounting'>('item');
+  // picked with typed amounts (Journal-style), no stock grid; 'voucher' = TallyPrime
+  // "As Voucher" — plain Dr/Cr double-entry rows (Journal layout); 'excise' /
+  // 'supplementary' = the item grid with a "Status : Excise/Supplementary" line at the
+  // top. Non-trade vouchers ignore this. When F11 maintain_inventory is off the mode is
+  // forced to accounting (see useVoucherForm's derived isAccountingInvoice).
+  const [invoiceMode, setInvoiceMode] = useState<
+    'item' | 'accounting' | 'voucher' | 'excise' | 'supplementary'
+  >('item');
 
   // ── Submission state ──────────────────────────────────────────────────────────
   const [isSubmitting, setIsSubmitting] = useState(false);

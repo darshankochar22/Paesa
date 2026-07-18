@@ -29,6 +29,9 @@ interface UseVoucherRowsOptions {
   /** TallyPrime Accounting Invoice mode (trade vouchers): particulars ledgers replace
    *  the stock grid, so the invoice total is sum(particulars) + tax rows, not stock. */
   isAccountingInvoice?: boolean;
+  /** TallyPrime "As Voucher" mode (trade vouchers): plain Dr/Cr rows in the Journal
+   *  double-entry layout — totals and ledger selection route to journalRows. */
+  isAsVoucher?: boolean;
 }
 
 export function useVoucherRows({
@@ -48,6 +51,7 @@ export function useVoucherRows({
   allUnits,
   stockBalances,
   isAccountingInvoice = false,
+  isAsVoucher = false,
 }: UseVoucherRowsOptions) {
   // ── Sub-hooks ──────────────────────────────────────────────────────────────
   const acct = useAccountingRows({
@@ -87,7 +91,8 @@ export function useVoucherRows({
     if (
       ((voucherType === 'Journal' || voucherType === 'Reversing Journal') &&
         acct.journalEntryMode === 'double') ||
-      voucherType === 'Memorandum'
+      voucherType === 'Memorandum' ||
+      isAsVoucher
     ) {
       return acct.journalRows.reduce(
         (sum, r) => sum + (r.type === 'Dr' ? Number(r.amountRaw) || 0 : 0),
@@ -124,13 +129,15 @@ export function useVoucherRows({
     acct.paymentDoubleRows,
     acct.paymentEntryMode,
     particularsTotal,
+    isAsVoucher,
   ]);
 
   const creditTotal = useMemo(() => {
     if (
       ((voucherType === 'Journal' || voucherType === 'Reversing Journal') &&
         acct.journalEntryMode === 'double') ||
-      voucherType === 'Memorandum'
+      voucherType === 'Memorandum' ||
+      isAsVoucher
     ) {
       return acct.journalRows.reduce(
         (sum, r) => sum + (r.type === 'Cr' ? Number(r.amountRaw) || 0 : 0),
@@ -167,6 +174,7 @@ export function useVoucherRows({
     acct.paymentDoubleRows,
     acct.paymentEntryMode,
     particularsTotal,
+    isAsVoucher,
   ]);
 
   const totalAmount = useMemo(() => {
@@ -193,6 +201,9 @@ export function useVoucherRows({
         'Material Out',
       ].includes(voucherType)
     ) {
+      // As Voucher mode: plain Dr/Cr rows — the voucher value is the debit total,
+      // exactly like a double-entry Journal.
+      if (isAsVoucher) return debitTotal;
       // Accounting Invoice mode: no stock grid — the invoice value is the particulars
       // ledger total plus the tax/charge rows (signed the same way as item mode).
       // Only Purchase posts the party on Cr; Sales/Credit Note/Debit Note keep party Dr.
@@ -249,6 +260,7 @@ export function useVoucherRows({
     acct.payrollEntries,
     inv.additionalEntries,
     isAccountingInvoice,
+    isAsVoucher,
   ]);
 
   // ─── Active field / search panel ──────────────────────────────────────────
@@ -282,7 +294,8 @@ export function useVoucherRows({
           if (
             voucherType === 'Journal' ||
             voucherType === 'Reversing Journal' ||
-            voucherType === 'Memorandum'
+            voucherType === 'Memorandum' ||
+            isAsVoucher
           ) {
             acct.handleUpdateJournalRow(activeField.rowId, { ledger });
           } else if (voucherType === 'Contra' && acct.contraEntryMode === 'double') {
@@ -370,6 +383,7 @@ export function useVoucherRows({
     [
       activeField,
       voucherType,
+      isAsVoucher,
       acct.contraEntryMode,
       acct.receiptEntryMode,
       acct.paymentEntryMode,

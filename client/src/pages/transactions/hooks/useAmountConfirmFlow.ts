@@ -442,10 +442,11 @@ export function useAmountConfirmFlow(
             ? form.receiptDoubleRows
             : effectiveVoucherType === 'Payment' && form.paymentEntryMode === 'double'
               ? form.paymentDoubleRows
-              : (effectiveVoucherType === 'Journal' ||
+              : ((effectiveVoucherType === 'Journal' ||
                     effectiveVoucherType === 'Reversing Journal' ||
                     effectiveVoucherType === 'Memorandum') &&
-                  form.journalEntryMode === 'double'
+                    form.journalEntryMode === 'double') ||
+                  form.isAsVoucher
                 ? form.journalRows
                 : null;
       // Single-entry particular (Payment/Receipt/Journal single): no double-entry
@@ -515,6 +516,7 @@ export function useAmountConfirmFlow(
       form.receiptEntryMode,
       form.paymentEntryMode,
       form.journalEntryMode,
+      form.isAsVoucher,
       form.setActiveAllocation,
       form.allUnits,
       form.checkLedgerGroup,

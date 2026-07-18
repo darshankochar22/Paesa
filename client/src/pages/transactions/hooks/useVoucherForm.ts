@@ -223,6 +223,13 @@ export function useVoucherForm(
   const isAccountingInvoice =
     ACCOUNTING_INVOICE_TYPES.includes(effectiveVoucherType) &&
     (!maintainInventory || meta.invoiceMode === 'accounting');
+  // "As Voucher" mode (Ctrl+H): trade voucher entered as plain Dr/Cr rows (Journal
+  // double-entry layout) — no party field, no stock grid. Never forced; only when
+  // inventory is on (inventory-off forces accounting mode instead).
+  const isAsVoucher =
+    ACCOUNTING_INVOICE_TYPES.includes(effectiveVoucherType) &&
+    maintainInventory &&
+    meta.invoiceMode === 'voucher';
 
   const rows = useVoucherRowsInternal({
     initialAdditionalEntries: [],
@@ -235,6 +242,7 @@ export function useVoucherForm(
     allUnits: ledgers.allUnits,
     stockBalances: ledgers.stockBalances,
     isAccountingInvoice,
+    isAsVoucher,
   });
 
   // ── Payroll Autofill ───────────────────────────────────────────────────────
@@ -364,6 +372,7 @@ export function useVoucherForm(
         features,
         resetForm,
         isAccountingInvoice,
+        isAsVoucher,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
@@ -374,6 +383,7 @@ export function useVoucherForm(
       meta.date,
       ledgers.checkIsCashOrBank,
       isAccountingInvoice,
+      isAsVoucher,
     ],
   );
 
@@ -396,6 +406,7 @@ export function useVoucherForm(
         resetForm,
         onNewVoucherSaved,
         isAccountingInvoice,
+        isAsVoucher,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
@@ -411,6 +422,7 @@ export function useVoucherForm(
       gstRegistration,
       features,
       isAccountingInvoice,
+      isAsVoucher,
     ],
   );
 
@@ -528,6 +540,7 @@ export function useVoucherForm(
     invoiceMode: meta.invoiceMode,
     setInvoiceMode: meta.setInvoiceMode,
     isAccountingInvoice,
+    isAsVoucher,
 
     // ── Master data
     allGstRegistrations,

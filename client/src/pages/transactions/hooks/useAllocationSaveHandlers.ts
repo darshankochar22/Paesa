@@ -49,10 +49,11 @@ export function useAllocationSaveHandlers(
       if (!alloc || !('rowId' in alloc)) return;
       const { rowId } = alloc;
       const isJDouble =
-        (effectiveVoucherType === 'Journal' ||
+        ((effectiveVoucherType === 'Journal' ||
           effectiveVoucherType === 'Reversing Journal' ||
           effectiveVoucherType === 'Memorandum') &&
-        form.journalEntryMode === 'double';
+          form.journalEntryMode === 'double') ||
+        form.isAsVoucher;
       const isJSingle = effectiveVoucherType === 'Journal' && form.journalEntryMode === 'single';
       const isPayDouble = effectiveVoucherType === 'Payment' && form.paymentEntryMode === 'double';
       const isInv = ['Sales', 'Purchase'].includes(effectiveVoucherType);
@@ -106,6 +107,7 @@ export function useAllocationSaveHandlers(
     [
       form.activeAllocation,
       effectiveVoucherType,
+      form.isAsVoucher,
       form.paymentEntryMode,
       form.journalEntryMode,
       form.contraEntryMode,
@@ -135,10 +137,11 @@ export function useAllocationSaveHandlers(
       if (!alloc || !('rowId' in alloc)) return;
       const { rowId } = alloc;
       const isJDouble =
-        (effectiveVoucherType === 'Journal' ||
+        ((effectiveVoucherType === 'Journal' ||
           effectiveVoucherType === 'Reversing Journal' ||
           effectiveVoucherType === 'Memorandum') &&
-        form.journalEntryMode === 'double';
+          form.journalEntryMode === 'double') ||
+        form.isAsVoucher;
       const isJSingle = effectiveVoucherType === 'Journal' && form.journalEntryMode === 'single';
       const isPayDouble = effectiveVoucherType === 'Payment' && form.paymentEntryMode === 'double';
       const isInv = ['Sales', 'Purchase'].includes(effectiveVoucherType);
@@ -175,6 +178,7 @@ export function useAllocationSaveHandlers(
     [
       form.activeAllocation,
       effectiveVoucherType,
+      form.isAsVoucher,
       form.paymentEntryMode,
       form.journalEntryMode,
       form.contraEntryMode,

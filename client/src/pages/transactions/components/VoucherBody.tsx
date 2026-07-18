@@ -22,6 +22,9 @@ import PurchaseOrderVoucher from '../vouchers/PurchaseOrderVoucher';
 import SalesOrderVoucher from '../vouchers/SalesOrderVoucher';
 import JobWorkInOrderVoucher from '../vouchers/JobWorkInOrderVoucher';
 import JobWorkOutOrderVoucher from '../vouchers/JobWorkOutOrderVoucher';
+import AccountingVoucherBody from './AccountingVoucherBody';
+
+const TRADE_TYPES = ['Sales', 'Purchase', 'Credit Note', 'Debit Note'];
 
 interface VoucherBodyProps {
   effectiveVoucherType: any;
@@ -42,8 +45,42 @@ export default function VoucherBody({
   proceedToNextStockRow,
   handlePhysicalStockQtyEnter,
 }: VoucherBodyProps) {
+  const isTrade = TRADE_TYPES.includes(effectiveVoucherType);
+
+  // "As Voucher" mode (Ctrl+H on a trade voucher): plain Dr/Cr double-entry rows —
+  // exactly the Journal layout, one shared body for all four trade types.
+  if (isTrade && form.isAsVoucher) {
+    return (
+      <AccountingVoucherBody
+        form={form}
+        handleAmountConfirm={handleAmountConfirm}
+        entryMode="double"
+        doubleRows={form.journalRows}
+        onUpdateDoubleRow={form.handleUpdateJournalRow}
+        onAddDoubleRow={form.handleAddJournalRow}
+        onRemoveDoubleRow={form.handleRemoveJournalRow}
+      />
+    );
+  }
+
+  // Excise / Supplementary Invoice modes: the item-invoice entry with a status line
+  // at the top (TallyPrime shows "Status : Excise" there).
+  const statusLabel =
+    isTrade && !form.isAccountingInvoice && form.invoiceMode === 'excise'
+      ? 'Excise'
+      : isTrade && !form.isAccountingInvoice && form.invoiceMode === 'supplementary'
+        ? 'Supplementary'
+        : null;
+
   return (
     <>
+      {statusLabel && (
+        <div className="flex items-center border-b border-gray-300 shrink-0 px-3 py-1 bg-white gap-3">
+          <span className="text-sm text-black">Status</span>
+          <span className="text-sm text-black">:</span>
+          <span className="text-sm font-semibold text-black">{statusLabel}</span>
+        </div>
+      )}
       {effectiveVoucherType === 'Payment' && (
         <PaymentVoucher form={form} handleAmountConfirm={handleAmountConfirm} />
       )}

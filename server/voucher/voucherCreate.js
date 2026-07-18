@@ -122,6 +122,10 @@ module.exports = {
 
       if (
         !data.import_mode &&
+        // "As Voucher" entry mode (Ctrl+H): plain Dr/Cr rows like a Journal — the user's
+        // typed amounts (including any tax ledgers) are stored verbatim, no per-item GST
+        // recompute (there are no invoice items to compute from). Balance still enforced.
+        !data.as_voucher_mode &&
         data.is_accounting_voucher &&
         ['Sales', 'Purchase', 'Credit Note', 'Debit Note'].includes(data.voucher_type) &&
         // F11 "Enable GST" is a computation gate: with GST off, no auto GST

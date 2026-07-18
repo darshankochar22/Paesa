@@ -24,7 +24,8 @@ export function useVoucherHandlers({
 
   const proceedToNextRow = useCallback(
     (idx: number) => {
-      const isJDouble = form.voucherType === 'Journal' && form.journalEntryMode === 'double';
+      const isJDouble =
+        (form.voucherType === 'Journal' && form.journalEntryMode === 'double') || form.isAsVoucher;
       const isJSingle = form.voucherType === 'Journal' && form.journalEntryMode === 'single';
       const isPayDouble = form.voucherType === 'Payment' && form.paymentEntryMode === 'double';
       const isInv = ['Sales', 'Purchase'].includes(form.voucherType);
@@ -66,6 +67,7 @@ export function useVoucherHandlers({
     },
     [
       form.voucherType,
+      form.isAsVoucher,
       form.paymentEntryMode,
       form.journalEntryMode,
       form.contraEntryMode,
@@ -273,7 +275,8 @@ export function useVoucherHandlers({
   // ─── getActiveRowList helper ──────────────────────────────────────────────
 
   const getActiveRowList = useCallback(() => {
-    const isJDouble = form.voucherType === 'Journal' && form.journalEntryMode === 'double';
+    const isJDouble =
+      (form.voucherType === 'Journal' && form.journalEntryMode === 'double') || form.isAsVoucher;
     const isJSingle = form.voucherType === 'Journal' && form.journalEntryMode === 'single';
     const isPayDouble = form.voucherType === 'Payment' && form.paymentEntryMode === 'double';
     const isInv = ['Sales', 'Purchase'].includes(form.voucherType);
@@ -294,6 +297,7 @@ export function useVoucherHandlers({
                 : form.particulars;
   }, [
     form.voucherType,
+    form.isAsVoucher,
     form.journalEntryMode,
     form.paymentEntryMode,
     form.contraEntryMode,
@@ -308,7 +312,8 @@ export function useVoucherHandlers({
 
   const updateActiveRowBillRefs = useCallback(
     (rowId: string, allocations: any[]) => {
-      const isJDouble = form.voucherType === 'Journal' && form.journalEntryMode === 'double';
+      const isJDouble =
+        (form.voucherType === 'Journal' && form.journalEntryMode === 'double') || form.isAsVoucher;
       const isJSingle = form.voucherType === 'Journal' && form.journalEntryMode === 'single';
       const isPayDouble = form.voucherType === 'Payment' && form.paymentEntryMode === 'double';
       const isInv = ['Sales', 'Purchase'].includes(form.voucherType);
@@ -327,6 +332,7 @@ export function useVoucherHandlers({
     },
     [
       form.voucherType,
+      form.isAsVoucher,
       form.journalEntryMode,
       form.paymentEntryMode,
       form.contraEntryMode,
@@ -342,7 +348,8 @@ export function useVoucherHandlers({
 
   const updateActiveRowCostCentres = useCallback(
     (rowId: string, allocations: any[]) => {
-      const isJDouble = form.voucherType === 'Journal' && form.journalEntryMode === 'double';
+      const isJDouble =
+        (form.voucherType === 'Journal' && form.journalEntryMode === 'double') || form.isAsVoucher;
       const isJSingle = form.voucherType === 'Journal' && form.journalEntryMode === 'single';
       const isPayDouble = form.voucherType === 'Payment' && form.paymentEntryMode === 'double';
       const isInv = ['Sales', 'Purchase'].includes(form.voucherType);
@@ -360,6 +367,7 @@ export function useVoucherHandlers({
     },
     [
       form.voucherType,
+      form.isAsVoucher,
       form.journalEntryMode,
       form.paymentEntryMode,
       form.contraEntryMode,
