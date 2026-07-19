@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { AiProposal, AiStatus } from '@/types/api/Ai';
+import BillScanView from './BillScanView';
 
 type Msg = { role: 'user' | 'assistant'; text: string; proposals?: AiProposal[] };
 
@@ -21,6 +22,7 @@ export default function Copilot() {
   const location = useLocation();
   const { selectedCompany, activeFY } = useCompany();
 
+  const [view, setView] = useState<'chat' | 'scan'>('scan');
   const [status, setStatus] = useState<AiStatus | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
@@ -115,147 +117,184 @@ export default function Copilot() {
         title="AI Copilot"
         subtitle={selectedCompany?.name}
         actions={
-          configured && status?.model ? (
-            <span className="text-zinc-400 text-[10px]">{status.model}</span>
-          ) : undefined
+          <div className="flex items-center gap-2">
+            <div className="flex border border-zinc-300 text-[10px] overflow-hidden">
+              <button
+                onClick={() => setView('scan')}
+                className={cn(
+                  'px-2.5 py-1 font-medium',
+                  view === 'scan'
+                    ? 'bg-zinc-900 text-white'
+                    : 'bg-white text-zinc-600 hover:bg-zinc-100',
+                )}
+              >
+                Scan Bill
+              </button>
+              <button
+                onClick={() => setView('chat')}
+                className={cn(
+                  'px-2.5 py-1 font-medium border-l border-zinc-300',
+                  view === 'chat'
+                    ? 'bg-zinc-900 text-white'
+                    : 'bg-white text-zinc-600 hover:bg-zinc-100',
+                )}
+              >
+                Chat
+              </button>
+            </div>
+            {configured && status?.model && view === 'chat' && (
+              <span className="text-zinc-400 text-[10px]">{status.model}</span>
+            )}
+          </div>
         }
       />
 
-      {/* Conversation */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6">
-        {!loading && !configured && (
-          <div className="max-w-md mx-auto border border-zinc-200 border-l-2 border-l-zinc-900 bg-white px-4 py-3 space-y-1">
-            <div className="font-bold text-zinc-900">AI is not configured</div>
-            <div className="text-zinc-600 leading-relaxed">
-              Set <code className="text-zinc-900">AI_API_KEY</code> in the server{' '}
-              <code className="text-zinc-900">.env</code> (a Groq key by default) and restart the
-              app.
-            </div>
-          </div>
-        )}
+      {view === 'scan' && <BillScanView />}
 
-        {configured && messages.length === 0 && (
-          <div className="max-w-xl mx-auto text-center space-y-3 pt-4">
-            <div className="text-sm font-bold text-zinc-700">Ask about your books</div>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setInput(s)}
-                  className="text-[11px] px-3 py-1.5 border border-zinc-300 bg-white text-zinc-700 hover:border-zinc-500"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="space-y-3">
-          {messages.map((m, mi) => (
-            <div
-              key={mi}
-              className={cn('max-w-2xl overflow-hidden', m.role === 'user' ? 'ml-auto' : 'mr-auto')}
-            >
-              <div
-                className={cn(
-                  'px-3 py-2 leading-relaxed text-[11px]',
-                  m.role === 'user'
-                    ? 'bg-zinc-900 text-white whitespace-pre-wrap'
-                    : 'bg-white border border-zinc-200 text-zinc-800 prose prose-sm prose-zinc max-w-none',
-                )}
-              >
-                {m.role === 'user' ? (
-                  m.text
-                ) : (
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      a: ({ node, href, children, ...props }) => (
-                        <a
-                          href={href}
-                          {...props}
-                          onClick={(e) => {
-                            if (href?.startsWith('/')) {
-                              e.preventDefault();
-                              navigate(href);
-                            }
-                          }}
-                          className="text-zinc-900 font-semibold underline underline-offset-2 hover:text-black cursor-pointer"
-                        >
-                          {children}
-                        </a>
-                      ),
-                      table: ({ node, ...props }) => (
-                        <div className="overflow-x-auto my-2">
-                          <table className="min-w-full border border-zinc-300" {...props} />
-                        </div>
-                      ),
-                      th: ({ node, ...props }) => (
-                        <th
-                          className="px-2 py-1 bg-zinc-100 font-bold text-left text-zinc-700 border border-zinc-300"
-                          {...props}
-                        />
-                      ),
-                      td: ({ node, ...props }) => (
-                        <td className="px-2 py-1 border border-zinc-200" {...props} />
-                      ),
-                    }}
-                  >
-                    {m.text}
-                  </ReactMarkdown>
-                )}
+      {view === 'chat' && (
+        <>
+          {/* Conversation */}
+          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6">
+            {!loading && !configured && (
+              <div className="max-w-md mx-auto border border-zinc-200 border-l-2 border-l-zinc-900 bg-white px-4 py-3 space-y-1">
+                <div className="font-bold text-zinc-900">AI is not configured</div>
+                <div className="text-zinc-600 leading-relaxed">
+                  Set <code className="text-zinc-900">AI_API_KEY</code> in the server{' '}
+                  <code className="text-zinc-900">.env</code> (a Groq key by default) and restart
+                  the app.
+                </div>
               </div>
+            )}
 
-              {m.proposals?.map((p, idx) => (
+            {configured && messages.length === 0 && (
+              <div className="max-w-xl mx-auto text-center space-y-3 pt-4">
+                <div className="text-sm font-bold text-zinc-700">Ask about your books</div>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {SUGGESTIONS.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setInput(s)}
+                      className="text-[11px] px-3 py-1.5 border border-zinc-300 bg-white text-zinc-700 hover:border-zinc-500"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              {messages.map((m, mi) => (
                 <div
-                  key={idx}
-                  className="mt-2 border border-zinc-200 border-l-2 border-l-zinc-900 bg-white px-3 py-2 flex items-center gap-3"
-                >
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 whitespace-nowrap">
-                    {p.action.replace(/_/g, ' ')}
-                  </span>
-                  <span className="text-[11px] text-zinc-700 flex-1">{p.summary}</span>
-                  {p.requiresApproval && (
-                    <Button variant="primary" size="sm" onClick={() => approve(p, idx, mi)}>
-                      Approve
-                    </Button>
+                  key={mi}
+                  className={cn(
+                    'max-w-2xl overflow-hidden',
+                    m.role === 'user' ? 'ml-auto' : 'mr-auto',
                   )}
+                >
+                  <div
+                    className={cn(
+                      'px-3 py-2 leading-relaxed text-[11px]',
+                      m.role === 'user'
+                        ? 'bg-zinc-900 text-white whitespace-pre-wrap'
+                        : 'bg-white border border-zinc-200 text-zinc-800 prose prose-sm prose-zinc max-w-none',
+                    )}
+                  >
+                    {m.role === 'user' ? (
+                      m.text
+                    ) : (
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          a: ({ node, href, children, ...props }) => (
+                            <a
+                              href={href}
+                              {...props}
+                              onClick={(e) => {
+                                if (href?.startsWith('/')) {
+                                  e.preventDefault();
+                                  navigate(href);
+                                }
+                              }}
+                              className="text-zinc-900 font-semibold underline underline-offset-2 hover:text-black cursor-pointer"
+                            >
+                              {children}
+                            </a>
+                          ),
+                          table: ({ node, ...props }) => (
+                            <div className="overflow-x-auto my-2">
+                              <table className="min-w-full border border-zinc-300" {...props} />
+                            </div>
+                          ),
+                          th: ({ node, ...props }) => (
+                            <th
+                              className="px-2 py-1 bg-zinc-100 font-bold text-left text-zinc-700 border border-zinc-300"
+                              {...props}
+                            />
+                          ),
+                          td: ({ node, ...props }) => (
+                            <td className="px-2 py-1 border border-zinc-200" {...props} />
+                          ),
+                        }}
+                      >
+                        {m.text}
+                      </ReactMarkdown>
+                    )}
+                  </div>
+
+                  {m.proposals?.map((p, idx) => (
+                    <div
+                      key={idx}
+                      className="mt-2 border border-zinc-200 border-l-2 border-l-zinc-900 bg-white px-3 py-2 flex items-center gap-3"
+                    >
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 whitespace-nowrap">
+                        {p.action.replace(/_/g, ' ')}
+                      </span>
+                      <span className="text-[11px] text-zinc-700 flex-1">{p.summary}</span>
+                      {p.requiresApproval && (
+                        <Button variant="primary" size="sm" onClick={() => approve(p, idx, mi)}>
+                          Approve
+                        </Button>
+                      )}
+                    </div>
+                  ))}
                 </div>
               ))}
+              {thinking && (
+                <div className="text-[11px] text-zinc-400 mr-auto">Copilot is thinking…</div>
+              )}
             </div>
-          ))}
-          {thinking && (
-            <div className="text-[11px] text-zinc-400 mr-auto">Copilot is thinking…</div>
-          )}
-        </div>
-      </div>
+          </div>
 
-      {/* Composer */}
-      <div className="border-t border-zinc-200 bg-white px-4 py-3 flex items-center gap-2">
-        <Input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              send();
-            }
-          }}
-          placeholder={
-            configured ? 'Ask about your books…' : 'AI is not configured — set AI_API_KEY in .env'
-          }
-          disabled={!configured || thinking}
-          className="h-9"
-        />
-        <Button
-          variant="primary"
-          onClick={() => send()}
-          disabled={!configured || thinking || !input.trim()}
-        >
-          Send
-        </Button>
-      </div>
+          {/* Composer */}
+          <div className="border-t border-zinc-200 bg-white px-4 py-3 flex items-center gap-2">
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  send();
+                }
+              }}
+              placeholder={
+                configured
+                  ? 'Ask about your books…'
+                  : 'AI is not configured — set AI_API_KEY in .env'
+              }
+              disabled={!configured || thinking}
+              className="h-9"
+            />
+            <Button
+              variant="primary"
+              onClick={() => send()}
+              disabled={!configured || thinking || !input.trim()}
+            >
+              Send
+            </Button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

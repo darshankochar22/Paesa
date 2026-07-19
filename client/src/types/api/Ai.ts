@@ -15,6 +15,49 @@ export interface AiStatus {
   masked: string | null;
 }
 
+// Gemini bill-scan status (own key: GEMINI_API_KEY).
+export interface GeminiStatus {
+  hasKey: boolean;
+  model: string | null;
+  masked: string | null;
+}
+
+// One AI-drafted voucher, in the snake_case shape hydrateVoucherForm consumes. Names are
+// pre-resolved to existing ledger_id/stock_item_id server-side; unresolved names are listed
+// separately for the user to pick in the entry screen.
+export interface ScannedVoucherDraft {
+  company_id?: number;
+  fy_id?: number;
+  voucher_type: string;
+  date: string;
+  party_name?: string;
+  party_ledger_id?: number;
+  reference_number?: string;
+  narration?: string;
+  entries?: Array<{ ledger_name?: string; ledger_id?: number; type: 'Dr' | 'Cr'; amount: number }>;
+  stock_entries?: Array<{
+    item_name?: string;
+    stock_item_id?: number;
+    quantity?: number;
+    rate?: number;
+    amount?: number;
+  }>;
+  tax_amount?: number;
+  total_amount?: number;
+  confidence?: number;
+  notes?: string;
+}
+
+export interface ScanBillResult {
+  success: boolean;
+  error?: string;
+  model?: string;
+  draft?: ScannedVoucherDraft;
+  unresolvedLedgers?: string[];
+  unresolvedItems?: string[];
+  warnings?: string[];
+}
+
 export interface AiAPI {
   ai: {
     getKeyStatus: () => Promise<AiStatus>;
@@ -30,5 +73,12 @@ export interface AiAPI {
       rounds?: number;
       capped?: boolean;
     }>;
+    scanBillStatus: () => Promise<GeminiStatus>;
+    scanBill: (payload: {
+      company_id?: number;
+      fy_id?: number;
+      imageBase64: string;
+      mimeType: string;
+    }) => Promise<ScanBillResult>;
   };
 }

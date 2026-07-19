@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useCompany } from '../../context/CompanyContext';
 
 import { useVoucherForm } from './hooks/useVoucherForm';
@@ -122,6 +122,33 @@ export default function Vouchers() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editVoucherId, form.ledgersLoading, form.allLedgers]);
 
+  // AI bill-scan prefill: the Copilot Scan-Bill screen navigates here with a drafted
+  // voucher in router state. We hydrate the SAME entry screen so the user reviews/alters
+  // it and Accepts through the normal create path — then we open its VoucherView.
+  const location = useLocation();
+  const scanDraft = (location.state as any)?.scanDraft as Record<string, unknown> | undefined;
+  const scanPrefillRef = useRef(0); // 0=idle, 1=type set, 2=hydrated
+  const usedScanDraftRef = useRef(false);
+  useEffect(() => {
+    if (!scanDraft || editVoucherId) return;
+    if (form.ledgersLoading || !(form.allLedgers && form.allLedgers.length)) return;
+    const draftType = String((scanDraft as any).voucher_type || '');
+    // Phase 1: set the type first so its (empty-row) reset fires before we fill rows.
+    if (scanPrefillRef.current === 0) {
+      scanPrefillRef.current = 1;
+      if (draftType) form.setVoucherType(draftType);
+      return;
+    }
+    // Phase 2: type settled → hydrate rows. hydrate's setVoucherType is now a no-op, so
+    // the type-change reset guard won't wipe what we set.
+    if (scanPrefillRef.current === 1 && form.voucherType === draftType) {
+      scanPrefillRef.current = 2;
+      usedScanDraftRef.current = true;
+      hydrateVoucherForm(form, scanDraft as any);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scanDraft, editVoucherId, form.ledgersLoading, form.allLedgers, form.voucherType]);
+
   const effectiveVoucherType = resolveEffectiveVoucherType(form.voucherType);
 
   // On a fresh create-save, queue the "Generate e-Invoice?" prompt when the user set
@@ -130,6 +157,13 @@ export default function Vouchers() {
   // Sales/Credit Note/Debit Note bodies. Assigned in an effect (not during render).
   useEffect(() => {
     onNewVoucherSavedRef.current = (info) => {
+      // A scanned-bill voucher: the user asked to land on the saved entry's VoucherView
+      // so they can see exactly what was written (and alter further if needed).
+      if (usedScanDraftRef.current) {
+        usedScanDraftRef.current = false;
+        navigate(`/transactions/voucher/${info.voucherId}`);
+        return;
+      }
       if (
         info.provideEInvoice === 'Yes' &&
         info.partyGstin &&

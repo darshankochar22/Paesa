@@ -5,6 +5,7 @@ const ewayBillController = require('../ewayBill/ewayBillController');
 const gstFilingController = require('../gstFiling/gstFilingController');
 const whatsappController = require('../whatsapp/whatsappController');
 const aiController = require('../ai/aiController');
+const billScanController = require('../ai/billScanController');
 const automationController = require('../automation/automationController');
 const tallyController = require('../integrations/tally/tallyController');
 
@@ -113,6 +114,8 @@ function register() {
 
   ipcMain.handle('ai:getKeyStatus', aiController.getKeyStatus);
   ipcMain.handle('ai:ask', aiController.ask);
+  ipcMain.handle('ai:scanBillStatus', billScanController.getStatus);
+  ipcMain.handle('ai:scanBill', billScanController.scanBill);
 
   ipcMain.handle('automation:getVoucherSchema', automationController.getVoucherSchema);
   ipcMain.handle('automation:validateVoucher', automationController.validateVoucher);

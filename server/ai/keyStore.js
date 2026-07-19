@@ -15,15 +15,32 @@
 const GROQ_BASE_URL = 'https://api.groq.com/openai/v1';
 const GROQ_DEFAULT_MODEL = 'llama-3.3-70b-versatile'; // tool-use capable; override via AI_MODEL
 
-// Returns { apiKey, baseUrl, model } or null when AI_API_KEY isn't configured.
+// Gemini's OpenAI-compatible surface — lets the same /chat/completions agent loop drive
+// Gemini (function-calling supported) when only a Google key is configured.
+const GEMINI_OPENAI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai';
+const GEMINI_DEFAULT_MODEL = 'gemini-2.5-flash';
+
+// Returns { apiKey, baseUrl, model } or null when no key is configured. AI_API_KEY (any
+// OpenAI-compatible provider) wins; otherwise fall back to GEMINI_API_KEY so a single
+// Google key powers both the bill-scan and the Copilot chat.
 function getConfig() {
-  const apiKey = (process.env.AI_API_KEY || '').trim();
-  if (!apiKey) return null;
-  return {
-    apiKey,
-    baseUrl: (process.env.AI_BASE_URL || GROQ_BASE_URL).trim(),
-    model: (process.env.AI_MODEL || GROQ_DEFAULT_MODEL).trim(),
-  };
+  const aiKey = (process.env.AI_API_KEY || '').trim();
+  if (aiKey) {
+    return {
+      apiKey: aiKey,
+      baseUrl: (process.env.AI_BASE_URL || GROQ_BASE_URL).trim(),
+      model: (process.env.AI_MODEL || GROQ_DEFAULT_MODEL).trim(),
+    };
+  }
+  const geminiKey = (process.env.GEMINI_API_KEY || '').trim();
+  if (geminiKey) {
+    return {
+      apiKey: geminiKey,
+      baseUrl: (process.env.AI_BASE_URL || GEMINI_OPENAI_BASE_URL).trim(),
+      model: (process.env.AI_MODEL || process.env.GEMINI_MODEL || GEMINI_DEFAULT_MODEL).trim(),
+    };
+  }
+  return null;
 }
 
 function maskKey(k) {

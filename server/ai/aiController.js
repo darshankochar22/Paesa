@@ -13,7 +13,8 @@ module.exports = {
     if (!config) {
       return {
         success: false,
-        error: 'AI is not configured. Set AI_API_KEY in the server .env and restart.',
+        error:
+          'AI is not configured. Set AI_API_KEY (or GEMINI_API_KEY) in the server .env and restart.',
       };
     }
     return agent.ask({ config, prompt, context: context || {}, history: history || [] });

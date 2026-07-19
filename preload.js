@@ -845,6 +845,8 @@ contextBridge.exposeInMainWorld('api', {
   ai: {
     getKeyStatus: () => invoke('ai:getKeyStatus'),
     ask: (payload) => invoke('ai:ask', payload),
+    scanBillStatus: () => invoke('ai:scanBillStatus'),
+    scanBill: (payload) => invoke('ai:scanBill', payload),
   },
   automation: {
     getVoucherSchema: () => invoke('automation:getVoucherSchema'),
