@@ -54,6 +54,16 @@ module.exports = {
     );
   },
 
+  // Latest MMYYYY period that has GST vouchers — used to default the GSTR-3B / GSTR-1
+  // period picker onto a populated month instead of an empty current/last month.
+  getLatestReturnPeriod: async (event, { company_id, fy_id, gst_registration_id }) => {
+    return await gstr3bService.getLatestReturnPeriod(
+      company_id,
+      fy_id,
+      gst_registration_id ?? null,
+    );
+  },
+
   getAnnualComputation: async (event, { company_id, fy_id, gst_registration_id }) => {
     // Uses the shared drill-engine classifier (reconciliationService) so the report's
     // voucher counts + section amounts match the Statistics / Not-Relevant / Uncertain

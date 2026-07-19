@@ -288,6 +288,11 @@ export interface MasterDataAPI {
       return_period: string;
       gst_registration_id?: number | null;
     }) => Promise<{ success: boolean; payload: any; error?: string }>;
+    getLatestReturnPeriod: (data: {
+      company_id: number;
+      fy_id: number;
+      gst_registration_id?: number | null;
+    }) => Promise<{ success: boolean; return_period: string | null; error?: string }>;
     getHSNRates: (
       company_id: number,
     ) => Promise<{ success: boolean; hsnRates: any[]; error?: string }>;

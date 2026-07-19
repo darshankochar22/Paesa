@@ -20,6 +20,43 @@ const getGSTR3B = async (company_id, fy_id, return_period, gst_registration_id =
   return await generateGSTR3B(company_id, fy_id, return_period, gst_registration_id);
 };
 
+// Latest return period (MMYYYY) that actually contains GST vouchers for this
+// company/FY/registration. The period picker otherwise defaults to today's month
+// (or the FY's last month), which is empty whenever the books don't reach that far —
+// so GSTR-3B / GSTR-1 open on a blank period even though earlier months have data.
+// Same voucher scope + registration filter as generateGSTR3B so the two always agree.
+const getLatestReturnPeriod = async (company_id, fy_id, gst_registration_id = null) => {
+  try {
+    const activeRegs = await db.all(
+      sql`SELECT gst_id FROM ${gstRegistrations}
+          WHERE ${gstRegistrations.companyId} = ${company_id}
+            AND ${gstRegistrations.isActive} = 1
+          ORDER BY gst_id ASC`,
+    );
+    const primaryId = activeRegs[0] ? Number(activeRegs[0].gst_id) : null;
+    let regFilter = sql``;
+    if (gst_registration_id != null) {
+      regFilter =
+        Number(gst_registration_id) === primaryId
+          ? sql`AND (v.gst_registration_id = ${gst_registration_id} OR v.gst_registration_id IS NULL)`
+          : sql`AND v.gst_registration_id = ${gst_registration_id}`;
+    }
+    const rows = await db.all(
+      sql`SELECT MAX(v.date) AS max_date FROM ${vouchers} v
+          WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
+            AND COALESCE(v.is_optional, 0) = 0 AND v.voucher_type != 'Memorandum'
+            AND v.voucher_type IN ('Sales', 'Purchase', 'Credit Note', 'Debit Note')
+            ${regFilter}`,
+    );
+    const maxDate = rows[0] && rows[0].max_date; // 'YYYY-MM-DD'
+    if (!maxDate) return { success: true, return_period: null };
+    const [y, m] = String(maxDate).split('-');
+    return { success: true, return_period: `${m}${y}` };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
 const generateGSTR3B = async (company_id, fy_id, return_period, gst_registration_id = null) => {
   try {
     const month = return_period.substring(0, 2);
@@ -477,4 +514,5 @@ const generateGSTR3B = async (company_id, fy_id, return_period, gst_registration
 module.exports = {
   generateGSTR3B,
   getGSTR3B,
+  getLatestReturnPeriod,
 };

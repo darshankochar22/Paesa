@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
 import { TallyReportLayout } from '@/components/tally-ui/TallyReportLayout';
@@ -128,6 +128,31 @@ export default function GSTR3BView() {
     setSelectedYear(d.year);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [periods]);
+
+  // Once per company/FY, snap the period onto the LATEST month that actually has GST
+  // vouchers. defaultPeriod above only guarantees an in-FY month (today's, or the FY's
+  // last) — which is still blank when the books don't reach that far, so 3B opens on an
+  // empty period and looks like "no data". Skipped when drilled into a specific period.
+  const autoDefaultedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (location.state?.month) return;
+    if (!companyId || !fyId || !periods.length) return;
+    const key = `${companyId}:${fyId}`;
+    if (autoDefaultedFor.current === key) return;
+    autoDefaultedFor.current = key;
+    const regId = (location.state?.registration || fetchedRegistration)?.gst_id ?? null;
+    window.api.gst
+      .getLatestReturnPeriod({ company_id: companyId, fy_id: fyId, gst_registration_id: regId })
+      .then((res: any) => {
+        const rp = res?.success ? res.return_period : null;
+        if (rp && periods.some((p) => p.value === rp)) {
+          setSelectedMonth(rp.slice(0, 2));
+          setSelectedYear(rp.slice(2));
+        }
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId, fyId, periods]);
   const [selectedRow, setSelectedRow] = useState<number | null>(null);
   // F5 Nature View — Liability (outward) + ITC (inward), split Local/Interstate.
   const [natureView, setNatureView] = useState(false);
