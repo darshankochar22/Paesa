@@ -3,6 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
 import { TallyReportLayout } from '@/components/tally-ui/TallyReportLayout';
 import { Button } from '@/components/shadcn/button';
+import RightActionPanel, { type RightPanelAction } from '@/components/ui/RightActionPanel';
+import ChangeViewPopup from '@/components/tally-ui/ChangeViewPopup';
 import {
   Table,
   TableHeader,
@@ -66,6 +68,7 @@ export default function GSTR1View() {
   // always takes the live, registration-scoped path — identical to the Track drill — instead
   // of the stale company-wide cached snapshot the backend returns for a null registration.
   const [regResolved, setRegResolved] = useState(false);
+  const [showChangeView, setShowChangeView] = useState(false);
   // F5 Nature View — included outward supplies split Local/Interstate × Taxable/Exempted.
   const [natureView, setNatureView] = useState(false);
   const [includedRows, setIncludedRows] = useState<any[]>([]);
@@ -489,6 +492,27 @@ export default function GSTR1View() {
     { count: 0, txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0, val: 0 },
   );
 
+  // Shared Tally-style right action panel (issue #245/#246). autoShortcuts registers
+  // the keys centrally. macOS grabs F5 for Dictation — the click always works.
+  const panelActions: RightPanelAction[] = [
+    {
+      key: 'F5',
+      label: natureView ? 'Return View' : 'Nature View',
+      onClick: () => setNatureView((v) => !v),
+      active: natureView,
+    },
+    { key: 'H', label: 'Change View', onClick: () => setShowChangeView(true) },
+    { key: 'Ctrl+R', label: 'Refresh', onClick: () => loadData(true) },
+    {
+      key: 'F10',
+      label: filing?.status === 'Filed' ? 'Filed ✓' : 'Mark as Filed',
+      onClick: handleMarkAsFiled,
+    },
+    { key: 'Alt+E', label: 'Export JSON', onClick: handleExportJson },
+    { key: 'Alt+X', label: 'Export Excel', onClick: handleExportExcel },
+    { key: 'Alt+C', label: 'Export CSV', onClick: handleExportCsv },
+  ];
+
   return (
     <TallyReportLayout
       title="GSTR-1"
@@ -521,59 +545,52 @@ export default function GSTR1View() {
           </div>
         </>
       }
-      footerControls={
-        <div className="flex items-center gap-4 ml-4">
-          <Button
-            onClick={() => setNatureView(!natureView)}
-            variant="ghost"
-            size="xs"
-            className="h-auto p-0 font-bold text-black-900 hover:underline hover:bg-transparent"
-          >
-            {natureView ? 'F5: Return View' : 'F5: Nature View'}
-          </Button>
-          <Button
-            onClick={() => loadData(true)}
-            variant="ghost"
-            size="xs"
-            className="h-auto p-0 font-bold text-black-900 hover:underline hover:bg-transparent"
-          >
-            Refresh
-          </Button>
-          <Button
-            onClick={handleMarkAsFiled}
-            variant="ghost"
-            size="xs"
-            className="h-auto p-0 font-bold text-black-900 hover:underline hover:bg-transparent"
-          >
-            F10: {filing?.status === 'Filed' ? 'Filed ✓' : 'Mark as Filed'}
-          </Button>
-          <Button
-            onClick={handleExportJson}
-            variant="ghost"
-            size="xs"
-            className="h-auto p-0 font-bold text-black-900 hover:underline hover:bg-transparent"
-          >
-            Alt+E: Export JSON
-          </Button>
-          <Button
-            onClick={handleExportExcel}
-            variant="ghost"
-            size="xs"
-            className="h-auto p-0 font-bold text-black-900 hover:underline hover:bg-transparent"
-          >
-            Export Excel
-          </Button>
-          <Button
-            onClick={handleExportCsv}
-            variant="ghost"
-            size="xs"
-            className="h-auto p-0 font-bold text-black-900 hover:underline hover:bg-transparent"
-          >
-            Export CSV
-          </Button>
-        </div>
-      }
+      rightPanel={<RightActionPanel title="GSTR-1" actions={panelActions} autoShortcuts />}
     >
+      {showChangeView && (
+        <ChangeViewPopup
+          onClose={() => setShowChangeView(false)}
+          views={[
+            {
+              id: 'return',
+              label: 'Return View',
+              active: !natureView,
+              onSelect: () => setNatureView(false),
+            },
+            {
+              id: 'nature',
+              label: 'Nature View',
+              active: natureView,
+              onSelect: () => setNatureView(true),
+            },
+          ]}
+          relatedReports={[
+            {
+              label: 'Track GST Return Activities',
+              onSelect: () => navigate('/master/statutory/gst/track-activities'),
+            },
+            {
+              label: 'GSTR-3B',
+              onSelect: () =>
+                navigate('/master/statutory/gstr3b', {
+                  state: {
+                    registration: activeRegistration,
+                    month: selectedMonth,
+                    year: selectedYear,
+                  },
+                }),
+            },
+            {
+              label: 'Annual Computation',
+              onSelect: () => navigate('/master/statutory/annual-computation'),
+            },
+            {
+              label: 'GSTR-1 Reconciliation',
+              onSelect: () => navigate('/master/statutory/gstr1/reconciliation'),
+            },
+          ]}
+        />
+      )}
       <div className="w-full flex flex-col font-sans text-xs pb-4">
         {loading && (
           <EmptyState message="Computing and compiling GSTR-1 payload..." className="italic" />

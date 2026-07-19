@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
 import { TallyReportLayout } from '@/components/tally-ui/TallyReportLayout';
-import { Button } from '@/components/shadcn/button';
 import Select from '@/components/ui/Select';
+import RightActionPanel, { type RightPanelAction } from '@/components/ui/RightActionPanel';
+import ChangeViewPopup from '@/components/tally-ui/ChangeViewPopup';
 import { fyPeriods, defaultPeriod } from '@/lib/gstPeriods';
 import {
   Table,
@@ -154,6 +155,7 @@ export default function GSTR3BView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId, fyId, periods]);
   const [selectedRow, setSelectedRow] = useState<number | null>(null);
+  const [showChangeView, setShowChangeView] = useState(false);
   // F5 Nature View — Liability (outward) + ITC (inward), split Local/Interstate.
   const [natureView, setNatureView] = useState(false);
   const [includedRows, setIncludedRows] = useState<any[]>([]);
@@ -562,6 +564,28 @@ export default function GSTR3BView() {
     },
   ];
 
+  // Tally-style right action panel (issue #245). autoShortcuts registers the keys
+  // centrally so the badges and handlers stay one source of truth. Note: on macOS
+  // F5 is intercepted by Dictation/Siri — the button click always works, and Fn+F5
+  // sends the real keycode.
+  const panelActions: RightPanelAction[] = [
+    {
+      key: 'F5',
+      label: natureView ? 'Return View' : 'Nature View',
+      onClick: () => setNatureView((v) => !v),
+      active: natureView,
+    },
+    { key: 'H', label: 'Change View', onClick: () => setShowChangeView(true) },
+    { key: 'Alt+J', label: 'Exception Reports', onClick: openStatistics },
+    { key: 'Ctrl+R', label: 'Refresh', onClick: () => loadData(true) },
+    {
+      key: 'F10',
+      label: filing?.status === 'Filed' ? 'Filed ✓' : 'Mark as Filed',
+      onClick: handleMarkAsFiled,
+    },
+    { key: 'Alt+E', label: 'Export JSON', onClick: handleExportJson, disabled: !gstr3bData },
+  ];
+
   return (
     <TallyReportLayout
       title="GSTR-3B"
@@ -606,43 +630,56 @@ export default function GSTR3BView() {
           <div className="font-normal">Last online GST activity: No Activity Found</div>
         </>
       }
-      footerControls={
-        <div className="flex items-center gap-4 ml-4">
-          <Button
-            onClick={() => setNatureView(!natureView)}
-            variant="ghost"
-            size="xs"
-            className="h-auto p-0 font-bold text-black-900 hover:underline hover:bg-transparent"
-          >
-            {natureView ? 'F5: Return View' : 'F5: Nature View'}
-          </Button>
-          <Button
-            onClick={() => loadData(true)}
-            variant="ghost"
-            size="xs"
-            className="h-auto p-0 font-bold text-black-900 hover:underline hover:bg-transparent"
-          >
-            Refresh
-          </Button>
-          <Button
-            onClick={handleMarkAsFiled}
-            variant="ghost"
-            size="xs"
-            className="h-auto p-0 font-bold text-black-900 hover:underline hover:bg-transparent"
-          >
-            F10: {filing?.status === 'Filed' ? 'Filed ✓' : 'Mark as Filed'}
-          </Button>
-          <Button
-            onClick={handleExportJson}
-            variant="ghost"
-            size="xs"
-            className="h-auto p-0 font-bold text-black-900 hover:underline hover:bg-transparent"
-          >
-            Alt+E: Export JSON
-          </Button>
-        </div>
-      }
+      rightPanel={<RightActionPanel title="GSTR-3B" actions={panelActions} autoShortcuts />}
     >
+      {showChangeView && (
+        <ChangeViewPopup
+          onClose={() => setShowChangeView(false)}
+          views={[
+            {
+              id: 'return',
+              label: 'Return View',
+              active: !natureView,
+              onSelect: () => setNatureView(false),
+            },
+            {
+              id: 'nature',
+              label: 'Nature View',
+              active: natureView,
+              onSelect: () => setNatureView(true),
+            },
+          ]}
+          relatedReports={[
+            {
+              label: 'Track GST Return Activities',
+              onSelect: () => navigate('/master/statutory/gst/track-activities'),
+            },
+            {
+              label: 'GSTR-1',
+              onSelect: () =>
+                navigate('/master/statutory/gstr1', {
+                  state: {
+                    registration: activeRegistration,
+                    month: selectedMonth,
+                    year: selectedYear,
+                  },
+                }),
+            },
+            {
+              label: 'Annual Computation',
+              onSelect: () => navigate('/master/statutory/annual-computation'),
+            },
+            {
+              label: 'GSTR-1 Reconciliation',
+              onSelect: () => navigate('/master/statutory/gstr1/reconciliation'),
+            },
+            {
+              label: 'GSTR-1 vs 3B Comparison',
+              onSelect: () => navigate('/master/statutory/gstr1-vs-3b'),
+            },
+          ]}
+        />
+      )}
       <div className="w-full flex flex-col font-sans text-xs pb-4">
         {loading && (
           <EmptyState message="Computing and compiling GSTR-3B payload..." className="italic" />
