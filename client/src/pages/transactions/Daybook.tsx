@@ -485,10 +485,6 @@ export default function Daybook() {
         e.preventDefault();
         navigate('/transactions/voucher-list');
       }
-      if (e.altKey && (e.key === 'b' || e.key === 'B')) {
-        e.preventDefault();
-        navigate('/utilities/banking');
-      }
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         setSelectedIndex((p) => Math.min(p + 1, vouchers.length - 1));

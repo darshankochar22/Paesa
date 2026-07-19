@@ -22,6 +22,12 @@ export const ROUTES = {
 
   // Utilities
   BANKING: '/utilities/banking',
+  BANKING_CHEQUE_PRINTING: '/utilities/banking/cheque-printing',
+  BANKING_CHEQUE_REGISTER: '/utilities/banking/cheque-register',
+  BANKING_POST_DATED_SUMMARY: '/utilities/banking/post-dated-summary',
+  BANKING_DEPOSIT_SLIP: '/utilities/banking/deposit-slip',
+  BANKING_PAYMENT_ADVICE: '/utilities/banking/payment-advice',
+  BANKING_RECONCILIATION: '/utilities/banking/reconciliation',
   COPILOT: '/utilities/copilot',
 
   // Report top-level menus

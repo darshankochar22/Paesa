@@ -10,55 +10,715 @@ export interface StockSummaryGroupNode {
   item_count: number;
   qty_displayable: boolean;
   unit_name: string;
-  items: { item_id: number; item_name: string; group_id: number | null; group_name: string; unit_name: string; closing_qty: number; closing_value: number; rate: number }[];
+  items: {
+    item_id: number;
+    item_name: string;
+    group_id: number | null;
+    group_name: string;
+    unit_name: string;
+    closing_qty: number;
+    closing_value: number;
+    rate: number;
+  }[];
   childGroups: StockSummaryGroupNode[];
 }
 
 export interface VoucherAPI {
   voucher: {
-    create: (data: Partial<VoucherRecordType>) => Promise<{ success: boolean; voucher: VoucherRecordType; error?: string }>;
-    getAll: (company_id: number, fy_id: number) => Promise<{ success: boolean; vouchers: VoucherRecordType[]; error?: string }>;
-    getById: (id: number) => Promise<{ success: boolean; voucher: VoucherRecordType; error?: string }>;
-    update: (data: Partial<VoucherRecordType>) => Promise<{ success: boolean; voucher: VoucherRecordType; error?: string }>;
+    create: (
+      data: Partial<VoucherRecordType>,
+    ) => Promise<{ success: boolean; voucher: VoucherRecordType; error?: string }>;
+    getAll: (
+      company_id: number,
+      fy_id: number,
+    ) => Promise<{ success: boolean; vouchers: VoucherRecordType[]; error?: string }>;
+    getById: (
+      id: number,
+    ) => Promise<{ success: boolean; voucher: VoucherRecordType; error?: string }>;
+    update: (
+      data: Partial<VoucherRecordType>,
+    ) => Promise<{ success: boolean; voucher: VoucherRecordType; error?: string }>;
     delete: (id: number) => Promise<{ success: boolean; error?: string }>;
     cancel: (id: number) => Promise<{ success: boolean; error?: string }>;
-    getDaybook: (company_id: number, fy_id: number, from_date?: string, to_date?: string) => Promise<{ success: boolean; vouchers: VoucherRecordType[]; error?: string }>;
-    getByType: (company_id: number, fy_id: number, type: string) => Promise<{ success: boolean; vouchers: VoucherRecordType[]; error?: string }>;
-    getByLedger: (company_id: number, fy_id: number, ledgerId: number) => Promise<{ success: boolean; vouchers: VoucherRecordType[]; error?: string }>;
-    getNextNumber: (company_id: number, fy_id: number, type: string) => Promise<{ success: boolean; nextNumber?: number; voucher_number?: string; error?: string }>;
-    getLedgerBalance: (ledger_id: number, company_id: number, fy_id: number) => Promise<{ success: boolean; balance?: string; rawBalance?: number; error?: string }>;
-    searchLedgers: (company_id: number, searchTerm: string) => Promise<{ success: boolean; ledgers: LedgerType[]; error?: string }>;
-    getPendingBills: (ledger_id: number, company_id: number, fy_id: number) => Promise<{ success: boolean; pendingBills?: { bill_name: string; bill_date: string | null; due_date: string | null; credit_period: string | null; balance: number | null; final_balance: number | null; is_order?: number }[]; defaultCreditPeriod?: number; error?: string }>;
+    getDaybook: (
+      company_id: number,
+      fy_id: number,
+      from_date?: string,
+      to_date?: string,
+    ) => Promise<{ success: boolean; vouchers: VoucherRecordType[]; error?: string }>;
+    getByType: (
+      company_id: number,
+      fy_id: number,
+      type: string,
+    ) => Promise<{ success: boolean; vouchers: VoucherRecordType[]; error?: string }>;
+    getByLedger: (
+      company_id: number,
+      fy_id: number,
+      ledgerId: number,
+    ) => Promise<{ success: boolean; vouchers: VoucherRecordType[]; error?: string }>;
+    getNextNumber: (
+      company_id: number,
+      fy_id: number,
+      type: string,
+    ) => Promise<{
+      success: boolean;
+      nextNumber?: number;
+      voucher_number?: string;
+      error?: string;
+    }>;
+    getLedgerBalance: (
+      ledger_id: number,
+      company_id: number,
+      fy_id: number,
+    ) => Promise<{ success: boolean; balance?: string; rawBalance?: number; error?: string }>;
+    searchLedgers: (
+      company_id: number,
+      searchTerm: string,
+    ) => Promise<{ success: boolean; ledgers: LedgerType[]; error?: string }>;
+    getPendingBills: (
+      ledger_id: number,
+      company_id: number,
+      fy_id: number,
+    ) => Promise<{
+      success: boolean;
+      pendingBills?: {
+        bill_name: string;
+        bill_date: string | null;
+        due_date: string | null;
+        credit_period: string | null;
+        balance: number | null;
+        final_balance: number | null;
+        is_order?: number;
+      }[];
+      defaultCreditPeriod?: number;
+      error?: string;
+    }>;
   };
 
   report: {
-    trialBalance: (company_id: number, fy_id: number) => Promise<{ success: boolean; rows: { ledger_id: number; ledger_name: string; debit: number; credit: number }[]; totalDebit: number; totalCredit: number }>;
-    balanceSheet: (company_id: number, fy_id: number) => Promise<{ success: boolean; assets: { ledger_id: number; ledger_name: string; balance: number }[]; liabilities: { ledger_id: number; ledger_name: string; balance: number }[]; totalAssets: number; totalLiabilities: number }>;
-    profitLoss: (company_id: number, fy_id: number) => Promise<{ success: boolean; income: { ledger_id: number; ledger_name: string; balance: number }[]; expenses: { ledger_id: number; ledger_name: string; balance: number }[]; totalIncome: number; totalExpenses: number; netProfit: number; isProfit: boolean }>;
-    ledgerReport: (company_id: number, fy_id: number, ledger_id: number, from_date?: string, to_date?: string) => Promise<{ success: boolean; ledger_name: string; opening_balance: number; rows: { date: string; voucher_type: string; debit: number; credit: number; balance: number; narration: string }[]; closing_balance: number }>;
-    cashBook: (company_id: number, fy_id: number, from_date?: string, to_date?: string) => Promise<{ success: boolean; ledger_name: string; rows: { date: string; voucher_type: string; debit: number; credit: number; balance: number }[] }>;
-    bankBook: (company_id: number, fy_id: number, ledger_id: number, from_date?: string, to_date?: string) => Promise<{ success: boolean; ledger_name: string; rows: { date: string; voucher_type: string; debit: number; credit: number; balance: number }[] }>;
-    daybook: (company_id: number, fy_id: number, from_date?: string, to_date?: string) => Promise<{ success: boolean; vouchers: DaybookEntryType[] }>;
-    billsReceivable: (company_id: number, fy_id: number) => Promise<{ success: boolean; as_on?: string; rows: { ledger_id: number; party: string; bill: string; bill_date: string; due_date: string; credit_period: number; overdue_days: number; balance: number; ageing: string }[]; total: number; bucketTotals: Record<string, number>; error?: string }>;
-    billsPayable: (company_id: number, fy_id: number) => Promise<{ success: boolean; as_on?: string; rows: { ledger_id: number; party: string; bill: string; bill_date: string; due_date: string; credit_period: number; overdue_days: number; balance: number; ageing: string }[]; total: number; bucketTotals: Record<string, number>; error?: string }>;
-    ledgerOutstandings: (company_id: number, fy_id: number, ledger_id: number) => Promise<{ success: boolean; as_on?: string; rows: { bill: string; bill_date: string; due_date: string; credit_period: number; overdue_days: number; balance: number; ageing: string }[]; total: number; bucketTotals: Record<string, number>; error?: string }>;
-    groupOutstandings: (company_id: number, fy_id: number, group_id: number) => Promise<{ success: boolean; as_on?: string; rows: { ledger_id: number; ledger_name: string; bills_count: number; total_amount: number; bills: { bill: string; bill_date: string; due_date: string; credit_period: number; overdue_days: number; balance: number; ageing: string }[] }[]; total: number; error?: string }>;
-    billVouchers: (company_id: number, fy_id: number, ledger_id: number, bill_name: string) => Promise<{ success: boolean; rows: { voucher_id: number; date: string; voucher_type: string; voucher_number: string | number; bill_type: string; amount: number; entry_type: "Dr" | "Cr"; stock_items: { item_name: string; quantity: number; rate: number; unit_symbol: string }[] }[]; error?: string }>;
-    interestReceivable: (company_id: number, fy_id: number, params: any) => Promise<{ success: boolean; rows: { ledger_name: string; opening_balance: number; interest: number; total: number }[]; totalInterest: number; error?: string }>;
-    interestPayable: (company_id: number, fy_id: number, params: any) => Promise<{ success: boolean; rows: { ledger_name: string; opening_balance: number; interest: number; total: number }[]; totalInterest: number; error?: string }>;
-    ledgerInterest: (company_id: number, fy_id: number, params: any) => Promise<{ success: boolean; ledger_name: string; interest: number; rows: { date: string; ref: string; rate: number; formula: string; amount: number; days: number; interest: number }[]; error?: string }>;
-    billWiseInterest: (company_id: number, fy_id: number, params: any) => Promise<{ success: boolean; ledger_name: string; rows: { bill_name: string; bill_date: string; opening_amt: number; rate: number; days: number; interest: number }[]; totalInterest: number; error?: string }>;
-    cashFlow: (company_id: number, fy_id: number, from_date?: string, to_date?: string) => Promise<{ success: boolean; from_date: string | null; to_date: string | null; cashBankLedgers: { ledger_id: number; ledger_name: string; ledger_type: string }[]; byCounterLedger: { ledger_id: number; ledger_name: string; inflow: number; outflow: number; net: number }[]; byVoucherType: { voucher_type: string; inflow: number; outflow: number; net: number }[]; totalInflow: number; totalOutflow: number; netCashFlow: number; error?: string }>;
-    fundsFlow: (company_id: number, fy_id: number, from_date?: string, to_date?: string) => Promise<{ success: boolean; from_date: string | null; to_date: string | null; fundsFromOperations: number; periodIncome: number; periodExpenses: number; sources: { particulars: string; amount: number; ledger_id?: number }[]; applications: { particulars: string; amount: number; ledger_id?: number }[]; totalSources: number; totalApplications: number; currentAssetsOpening: number; currentAssetsClosing: number; currentLiabilitiesOpening: number; currentLiabilitiesClosing: number; workingCapitalOpening: number; workingCapitalClosing: number; workingCapitalChange: number; netWorkingCapitalChange: number; isNetIncrease: boolean; currentAssetsGroupId: number | null; currentLiabilitiesGroupId: number | null; error?: string }>;
-    stockSummary: (company_id: number, fy_id: number, as_on_date?: string) => Promise<{ success: boolean; as_on_date: string | null; items: { item_id: number; item_name: string; group_id: number | null; group_name: string; unit_name: string; opening_qty: number; opening_value: number; inwards_qty: number; inwards_value: number; outwards_qty: number; outwards_value: number; closing_qty: number; closing_value: number; rate: number }[]; rootItems: { item_id: number; item_name: string; group_id: number | null; group_name: string; unit_name: string; closing_qty: number; closing_value: number; rate: number }[]; groups: StockSummaryGroupNode[]; totalClosingQty: number; totalQtyDisplayable: boolean; totalClosingValue: number; error?: string }>;
-    ratioAnalysis: (company_id: number, fy_id: number) => Promise<{ success: boolean; ratios: { key: string; label: string; unit: string; value: number | null }[]; components: Record<string, number>; error?: string }>;
+    trialBalance: (
+      company_id: number,
+      fy_id: number,
+    ) => Promise<{
+      success: boolean;
+      rows: { ledger_id: number; ledger_name: string; debit: number; credit: number }[];
+      totalDebit: number;
+      totalCredit: number;
+    }>;
+    balanceSheet: (
+      company_id: number,
+      fy_id: number,
+    ) => Promise<{
+      success: boolean;
+      assets: { ledger_id: number; ledger_name: string; balance: number }[];
+      liabilities: { ledger_id: number; ledger_name: string; balance: number }[];
+      totalAssets: number;
+      totalLiabilities: number;
+    }>;
+    profitLoss: (
+      company_id: number,
+      fy_id: number,
+    ) => Promise<{
+      success: boolean;
+      income: { ledger_id: number; ledger_name: string; balance: number }[];
+      expenses: { ledger_id: number; ledger_name: string; balance: number }[];
+      totalIncome: number;
+      totalExpenses: number;
+      netProfit: number;
+      isProfit: boolean;
+    }>;
+    ledgerReport: (
+      company_id: number,
+      fy_id: number,
+      ledger_id: number,
+      from_date?: string,
+      to_date?: string,
+    ) => Promise<{
+      success: boolean;
+      ledger_name: string;
+      opening_balance: number;
+      rows: {
+        date: string;
+        voucher_type: string;
+        debit: number;
+        credit: number;
+        balance: number;
+        narration: string;
+      }[];
+      closing_balance: number;
+    }>;
+    cashBook: (
+      company_id: number,
+      fy_id: number,
+      from_date?: string,
+      to_date?: string,
+    ) => Promise<{
+      success: boolean;
+      ledger_name: string;
+      rows: {
+        date: string;
+        voucher_type: string;
+        debit: number;
+        credit: number;
+        balance: number;
+      }[];
+    }>;
+    bankBook: (
+      company_id: number,
+      fy_id: number,
+      ledger_id: number,
+      from_date?: string,
+      to_date?: string,
+    ) => Promise<{
+      success: boolean;
+      ledger_name: string;
+      rows: {
+        date: string;
+        voucher_type: string;
+        debit: number;
+        credit: number;
+        balance: number;
+      }[];
+    }>;
+    daybook: (
+      company_id: number,
+      fy_id: number,
+      from_date?: string,
+      to_date?: string,
+    ) => Promise<{ success: boolean; vouchers: DaybookEntryType[] }>;
+    billsReceivable: (
+      company_id: number,
+      fy_id: number,
+    ) => Promise<{
+      success: boolean;
+      as_on?: string;
+      rows: {
+        ledger_id: number;
+        party: string;
+        bill: string;
+        bill_date: string;
+        due_date: string;
+        credit_period: number;
+        overdue_days: number;
+        balance: number;
+        ageing: string;
+      }[];
+      total: number;
+      bucketTotals: Record<string, number>;
+      error?: string;
+    }>;
+    billsPayable: (
+      company_id: number,
+      fy_id: number,
+    ) => Promise<{
+      success: boolean;
+      as_on?: string;
+      rows: {
+        ledger_id: number;
+        party: string;
+        bill: string;
+        bill_date: string;
+        due_date: string;
+        credit_period: number;
+        overdue_days: number;
+        balance: number;
+        ageing: string;
+      }[];
+      total: number;
+      bucketTotals: Record<string, number>;
+      error?: string;
+    }>;
+    ledgerOutstandings: (
+      company_id: number,
+      fy_id: number,
+      ledger_id: number,
+    ) => Promise<{
+      success: boolean;
+      as_on?: string;
+      rows: {
+        bill: string;
+        bill_date: string;
+        due_date: string;
+        credit_period: number;
+        overdue_days: number;
+        balance: number;
+        ageing: string;
+      }[];
+      total: number;
+      bucketTotals: Record<string, number>;
+      error?: string;
+    }>;
+    groupOutstandings: (
+      company_id: number,
+      fy_id: number,
+      group_id: number,
+    ) => Promise<{
+      success: boolean;
+      as_on?: string;
+      rows: {
+        ledger_id: number;
+        ledger_name: string;
+        bills_count: number;
+        total_amount: number;
+        bills: {
+          bill: string;
+          bill_date: string;
+          due_date: string;
+          credit_period: number;
+          overdue_days: number;
+          balance: number;
+          ageing: string;
+        }[];
+      }[];
+      total: number;
+      error?: string;
+    }>;
+    billVouchers: (
+      company_id: number,
+      fy_id: number,
+      ledger_id: number,
+      bill_name: string,
+    ) => Promise<{
+      success: boolean;
+      rows: {
+        voucher_id: number;
+        date: string;
+        voucher_type: string;
+        voucher_number: string | number;
+        bill_type: string;
+        amount: number;
+        entry_type: 'Dr' | 'Cr';
+        stock_items: { item_name: string; quantity: number; rate: number; unit_symbol: string }[];
+      }[];
+      error?: string;
+    }>;
+    interestReceivable: (
+      company_id: number,
+      fy_id: number,
+      params: any,
+    ) => Promise<{
+      success: boolean;
+      rows: { ledger_name: string; opening_balance: number; interest: number; total: number }[];
+      totalInterest: number;
+      error?: string;
+    }>;
+    interestPayable: (
+      company_id: number,
+      fy_id: number,
+      params: any,
+    ) => Promise<{
+      success: boolean;
+      rows: { ledger_name: string; opening_balance: number; interest: number; total: number }[];
+      totalInterest: number;
+      error?: string;
+    }>;
+    ledgerInterest: (
+      company_id: number,
+      fy_id: number,
+      params: any,
+    ) => Promise<{
+      success: boolean;
+      ledger_name: string;
+      interest: number;
+      rows: {
+        date: string;
+        ref: string;
+        rate: number;
+        formula: string;
+        amount: number;
+        days: number;
+        interest: number;
+      }[];
+      error?: string;
+    }>;
+    billWiseInterest: (
+      company_id: number,
+      fy_id: number,
+      params: any,
+    ) => Promise<{
+      success: boolean;
+      ledger_name: string;
+      rows: {
+        bill_name: string;
+        bill_date: string;
+        opening_amt: number;
+        rate: number;
+        days: number;
+        interest: number;
+      }[];
+      totalInterest: number;
+      error?: string;
+    }>;
+    cashFlow: (
+      company_id: number,
+      fy_id: number,
+      from_date?: string,
+      to_date?: string,
+    ) => Promise<{
+      success: boolean;
+      from_date: string | null;
+      to_date: string | null;
+      cashBankLedgers: { ledger_id: number; ledger_name: string; ledger_type: string }[];
+      byCounterLedger: {
+        ledger_id: number;
+        ledger_name: string;
+        inflow: number;
+        outflow: number;
+        net: number;
+      }[];
+      byVoucherType: { voucher_type: string; inflow: number; outflow: number; net: number }[];
+      totalInflow: number;
+      totalOutflow: number;
+      netCashFlow: number;
+      error?: string;
+    }>;
+    fundsFlow: (
+      company_id: number,
+      fy_id: number,
+      from_date?: string,
+      to_date?: string,
+    ) => Promise<{
+      success: boolean;
+      from_date: string | null;
+      to_date: string | null;
+      fundsFromOperations: number;
+      periodIncome: number;
+      periodExpenses: number;
+      sources: { particulars: string; amount: number; ledger_id?: number }[];
+      applications: { particulars: string; amount: number; ledger_id?: number }[];
+      totalSources: number;
+      totalApplications: number;
+      currentAssetsOpening: number;
+      currentAssetsClosing: number;
+      currentLiabilitiesOpening: number;
+      currentLiabilitiesClosing: number;
+      workingCapitalOpening: number;
+      workingCapitalClosing: number;
+      workingCapitalChange: number;
+      netWorkingCapitalChange: number;
+      isNetIncrease: boolean;
+      currentAssetsGroupId: number | null;
+      currentLiabilitiesGroupId: number | null;
+      error?: string;
+    }>;
+    stockSummary: (
+      company_id: number,
+      fy_id: number,
+      as_on_date?: string,
+    ) => Promise<{
+      success: boolean;
+      as_on_date: string | null;
+      items: {
+        item_id: number;
+        item_name: string;
+        group_id: number | null;
+        group_name: string;
+        unit_name: string;
+        opening_qty: number;
+        opening_value: number;
+        inwards_qty: number;
+        inwards_value: number;
+        outwards_qty: number;
+        outwards_value: number;
+        closing_qty: number;
+        closing_value: number;
+        rate: number;
+      }[];
+      rootItems: {
+        item_id: number;
+        item_name: string;
+        group_id: number | null;
+        group_name: string;
+        unit_name: string;
+        closing_qty: number;
+        closing_value: number;
+        rate: number;
+      }[];
+      groups: StockSummaryGroupNode[];
+      totalClosingQty: number;
+      totalQtyDisplayable: boolean;
+      totalClosingValue: number;
+      error?: string;
+    }>;
+    ratioAnalysis: (
+      company_id: number,
+      fy_id: number,
+    ) => Promise<{
+      success: boolean;
+      ratios: { key: string; label: string; unit: string; value: number | null }[];
+      components: Record<string, number>;
+      error?: string;
+    }>;
   };
 
   banking: {
-    getUnreconciled: (company_id: number, fy_id: number, ledgerId: number) => Promise<{ success: boolean; error?: string; transactions: { entry_id: number; voucher_id: number; voucher_number?: string; date: string; type: string; amount: number; narration?: string; party_name?: string }[] }>;
-    reconcile: (data: { entry_id: number; voucher_id: number; ledger_id: number; reconciled_date?: string; bank_date?: string; bank_reference?: string }) => Promise<{ success: boolean; error?: string }>;
-    unreconcile: (entry_id: number) => Promise<{ success: boolean; error?: string; removed?: number }>;
-    getStatement: (company_id: number, fy_id: number, ledger_id: number, from_date?: string, to_date?: string) => Promise<{ success: boolean; error?: string; ledger_name: string; rows: { entry_id: number; voucher_id: number; voucher_number?: string; date: string; type: string; amount: number; is_reconciled: boolean; balance: number; bank_reference?: string | null; reconciliation_id?: number | null }[] }>;
-    getSummary: (company_id: number, fy_id: number, ledgerId: number) => Promise<{ success: boolean; error?: string; ledger_name: string; book_balance: number; reconciled_amount: number; unreconciled_amount: number; total_reconciled_count: number; total_unreconciled_count?: number; total_count?: number }>;
+    getUnreconciled: (
+      company_id: number,
+      fy_id: number,
+      ledgerId: number,
+    ) => Promise<{
+      success: boolean;
+      error?: string;
+      transactions: {
+        entry_id: number;
+        voucher_id: number;
+        voucher_number?: string;
+        date: string;
+        type: string;
+        amount: number;
+        narration?: string;
+        party_name?: string;
+      }[];
+    }>;
+    reconcile: (data: {
+      entry_id: number;
+      voucher_id: number;
+      ledger_id: number;
+      reconciled_date?: string;
+      bank_date?: string;
+      bank_reference?: string;
+    }) => Promise<{ success: boolean; error?: string }>;
+    unreconcile: (
+      entry_id: number,
+    ) => Promise<{ success: boolean; error?: string; removed?: number }>;
+    getStatement: (
+      company_id: number,
+      fy_id: number,
+      ledger_id: number,
+      from_date?: string,
+      to_date?: string,
+    ) => Promise<{
+      success: boolean;
+      error?: string;
+      ledger_name: string;
+      book_balance: number;
+      unreconciled_dr: number;
+      unreconciled_cr: number;
+      balance_as_per_bank: number;
+      rows: {
+        entry_id: number;
+        voucher_id: number;
+        voucher_number?: string;
+        date: string;
+        voucher_type?: string;
+        party_name?: string;
+        narration?: string;
+        transaction_type?: string | null;
+        instrument_number?: string | null;
+        instrument_date?: string | null;
+        type: string;
+        amount: number;
+        is_reconciled: boolean;
+        balance: number;
+        bank_date?: string | null;
+        bank_reference?: string | null;
+        reconciliation_id?: number | null;
+      }[];
+    }>;
+    getSummary: (
+      company_id: number,
+      fy_id: number,
+      ledgerId: number,
+    ) => Promise<{
+      success: boolean;
+      error?: string;
+      ledger_name: string;
+      book_balance: number;
+      reconciled_amount: number;
+      unreconciled_amount: number;
+      total_reconciled_count: number;
+      total_unreconciled_count?: number;
+      total_count?: number;
+    }>;
+    getBankLedgers: (
+      company_id: number,
+    ) => Promise<{
+      success: boolean;
+      error?: string;
+      ledgers: {
+        ledger_id: number;
+        name: string;
+        group_name?: string;
+        enable_cheque_printing: number;
+      }[];
+    }>;
+    getChequePrinting: (
+      company_id: number,
+      fy_id: number,
+      ledger_id: number,
+      from_date?: string,
+      to_date?: string,
+      include_printed?: boolean,
+    ) => Promise<{
+      success: boolean;
+      error?: string;
+      ledger_name: string;
+      is_configured: boolean;
+      grand_total: number;
+      rows: {
+        bank_detail_id: number;
+        voucher_id: number;
+        voucher_number?: string;
+        date: string;
+        particulars: string;
+        instrument_number: string;
+        instrument_date: string;
+        printed: boolean;
+        amount: number;
+      }[];
+    }>;
+    markChequePrinted: (
+      bank_detail_ids: number[],
+      printed?: boolean,
+    ) => Promise<{ success: boolean; error?: string; updated?: number }>;
+    getPartyLedgers: (
+      company_id: number,
+    ) => Promise<{
+      success: boolean;
+      error?: string;
+      ledgers: { ledger_id: number; name: string; email: string }[];
+    }>;
+    getPaymentAdvice: (
+      company_id: number,
+      fy_id: number,
+      ledger_id: number,
+      from_date?: string,
+      to_date?: string,
+      reconciled_only?: boolean,
+    ) => Promise<{
+      success: boolean;
+      error?: string;
+      ledger_name: string;
+      grand_total: number;
+      rows: {
+        voucher_id: number;
+        bank_detail_id: number | null;
+        voucher_number: string;
+        voucher_type: string;
+        date: string;
+        particulars: string;
+        reconciled: boolean;
+        printed: boolean;
+        amount: number;
+      }[];
+    }>;
+    updateLedgerEmail: (
+      ledger_id: number,
+      email: string,
+    ) => Promise<{ success: boolean; error?: string }>;
+    getPostDatedSummary: (
+      company_id: number,
+      fy_id: number,
+      ledger_id: number,
+    ) => Promise<{
+      success: boolean;
+      error?: string;
+      ledger_name: string;
+      months: {
+        ym: string;
+        received_amount: number;
+        received_count: number;
+        issued_amount: number;
+        issued_count: number;
+      }[];
+      grand_total: {
+        received_amount: number;
+        received_count: number;
+        issued_amount: number;
+        issued_count: number;
+      };
+    }>;
+    getPostDatedTransactions: (
+      company_id: number,
+      fy_id: number,
+      ledger_id: number,
+      from_date?: string,
+      to_date?: string,
+    ) => Promise<{
+      success: boolean;
+      error?: string;
+      ledger_name: string;
+      grand_total: number;
+      rows: {
+        entry_id: number;
+        voucher_id: number;
+        voucher_number?: string;
+        date: string;
+        type: string;
+        particulars: string;
+        instrument_number: string;
+        instrument_date: string;
+        status: string;
+        amount: number;
+      }[];
+    }>;
+    getChequeRegisterBankWise: (
+      company_id: number,
+      fy_id: number,
+      from_date?: string,
+      to_date?: string,
+    ) => Promise<{
+      success: boolean;
+      error?: string;
+      rows: ChequeRegisterCountRow[];
+      grand_total: ChequeRegisterCounts;
+    }>;
+    getChequeRegisterRanges: (
+      company_id: number,
+      fy_id: number,
+      ledger_id: number,
+      from_date?: string,
+      to_date?: string,
+    ) => Promise<{
+      success: boolean;
+      error?: string;
+      ledger_name: string;
+      rows: ChequeRegisterRangeRow[];
+      grand_total: ChequeRegisterCounts;
+    }>;
+    getChequeRegisterInstruments: (
+      company_id: number,
+      fy_id: number,
+      ledger_id: number,
+      range?: string,
+      from_date?: string,
+      to_date?: string,
+      status?: string,
+    ) => Promise<{
+      success: boolean;
+      error?: string;
+      ledger_name: string;
+      range: string;
+      grand_total: number;
+      rows: {
+        bank_detail_id: number;
+        voucher_id: number;
+        cheque_no: string;
+        status: string;
+        date: string;
+        particulars: string;
+        vch_type: string;
+        vch_no: string;
+        instrument_date: string;
+        amount: number;
+      }[];
+    }>;
   };
+}
+
+export interface ChequeRegisterCounts {
+  unreconciled: number;
+  reconciled: number;
+  cancelled: number;
+  out_of_period: number;
+  blank: number;
+  available: number;
+  total: number;
+}
+export interface ChequeRegisterCountRow extends ChequeRegisterCounts {
+  ledger_id: number;
+  particulars: string;
+}
+export interface ChequeRegisterRangeRow extends ChequeRegisterCounts {
+  range: string;
 }

@@ -21,7 +21,6 @@ const DESTINATIONS: Destination[] = [
   { label: 'Vouchers', route: '/transactions/vouchers', group: 'Transactions' },
   { label: 'Voucher Register', route: '/transactions/voucher-list', group: 'Transactions' },
   { label: 'Day Book', route: '/transactions/daybook', group: 'Transactions' },
-  { label: 'Banking', route: '/utilities/banking', group: 'Utilities' },
   { label: 'AI Copilot', route: '/utilities/copilot', group: 'Utilities' },
   { label: 'Balance Sheet', route: '/reports/accounts/balance-sheet', group: 'Reports' },
   { label: 'Profit & Loss A/c', route: '/reports/accounts/profit-loss', group: 'Reports' },

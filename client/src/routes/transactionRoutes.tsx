@@ -4,8 +4,14 @@ import EWayBillPrintView from '../pages/transactions/EWayBillPrintView.tsx';
 import Daybook from '../pages/transactions/Daybook.tsx';
 import Vouchers from '../pages/transactions/Vouchers.tsx';
 import VoucherList from '../pages/transactions/VoucherList.tsx';
-import Banking from '../pages/utilities/Banking';
 import Copilot from '../pages/utilities/Copilot';
+import Banking from '../pages/utilities/banking/BankingMenu';
+import ChequePrinting from '../pages/utilities/banking/ChequePrinting';
+import ChequeRegister from '../pages/utilities/banking/ChequeRegister';
+import PostDatedSummary from '../pages/utilities/banking/PostDatedSummary';
+import DepositSlip from '../pages/utilities/banking/DepositSlip';
+import PaymentAdvice from '../pages/utilities/banking/PaymentAdvice';
+import BankReconciliation from '../pages/utilities/banking/BankReconciliation';
 import GenericDataView from '../pages/GenericDataView.tsx';
 import type { RouteConfig } from './types';
 
@@ -17,7 +23,13 @@ export const transactionRoutes: RouteConfig[] = [
   { path: '/transactions/voucher/:id/ewaybill', element: <EWayBillPrintView /> },
   { path: '/transactions/voucher/:id/edit', element: <Vouchers /> },
   { path: '/transactions/daybook', element: <Daybook /> },
-  { path: '/utilities/banking', element: <Banking /> },
   { path: '/utilities/copilot', element: <Copilot /> },
+  { path: '/utilities/banking', element: <Banking /> },
+  { path: '/utilities/banking/cheque-printing', element: <ChequePrinting /> },
+  { path: '/utilities/banking/cheque-register', element: <ChequeRegister /> },
+  { path: '/utilities/banking/post-dated-summary', element: <PostDatedSummary /> },
+  { path: '/utilities/banking/deposit-slip', element: <DepositSlip /> },
+  { path: '/utilities/banking/payment-advice', element: <PaymentAdvice /> },
+  { path: '/utilities/banking/reconciliation', element: <BankReconciliation /> },
   { path: '/data/:controller', element: <GenericDataView /> },
 ];

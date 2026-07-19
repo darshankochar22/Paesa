@@ -194,10 +194,6 @@ export default function VoucherList() {
         e.preventDefault();
         navigate('/transactions/daybook');
       }
-      if (e.altKey && (e.key === 'b' || e.key === 'B')) {
-        e.preventDefault();
-        navigate('/utilities/banking');
-      }
       if (e.altKey && (e.key === 'e' || e.key === 'E')) {
         e.preventDefault();
         exportRef.current();
@@ -229,7 +225,6 @@ export default function VoucherList() {
     { key: 'Alt+C', label: 'New Voucher', onClick: () => navigate('/transactions/vouchers') },
     { key: 'F4', label: 'Voucher Type', onClick: () => setShowTypePopup(true) },
     { key: 'Alt+D', label: 'Day Book', onClick: () => navigate('/transactions/daybook') },
-    { key: 'Alt+B', label: 'Banking', onClick: () => navigate('/utilities/banking') },
     { key: 'Alt+E', label: 'Export', onClick: () => exportRef.current() },
     { key: 'Esc', label: 'Quit', onClick: () => navigate('/') },
   ];

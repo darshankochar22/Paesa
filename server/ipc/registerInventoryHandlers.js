@@ -38,8 +38,12 @@ function register() {
   ipcMain.handle('stockItem:getByGroup', stockItemController.getByGroup);
   ipcMain.handle('stockItem:getByCategory', stockItemController.getByCategory);
   ipcMain.handle('stockItem:getStockBalances', stockItemController.getStockBalances);
-  ipcMain.handle('stockItem:getStockBalancesByGodown', stockItemController.getStockBalancesByGodown);
+  ipcMain.handle(
+    'stockItem:getStockBalancesByGodown',
+    stockItemController.getStockBalancesByGodown,
+  );
   ipcMain.handle('stockItem:getLastPurchaseRate', stockItemController.getLastPurchaseRate);
+  ipcMain.handle('stockItem:getLastSalesRate', stockItemController.getLastSalesRate);
   ipcMain.handle('stockItem:getActiveBatches', stockItemController.getActiveBatches);
 
   ipcMain.handle('godown:create', godownController.create);

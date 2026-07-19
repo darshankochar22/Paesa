@@ -44,6 +44,9 @@ interface Props {
   initialAllocations?: BatchAllocation[];
   /** Show the Batch / Lot No. column (batch-tracked items only). */
   showBatch?: boolean;
+  /** Which history the auto-fill rate is read from: the item's last Sales rate
+   *  (Sales / Credit Note) or last Purchase rate (Purchase / Debit Note). */
+  rateSource?: 'sales' | 'purchase';
   onClose: () => void;
   onSave: (allocations: BatchAllocation[]) => void;
 }
@@ -61,6 +64,7 @@ export default function OrderItemAllocationPopup({
   godowns = [],
   initialAllocations = [],
   showBatch = true,
+  rateSource = 'purchase',
   onClose,
   onSave,
 }: Props) {
@@ -182,21 +186,25 @@ export default function OrderItemAllocationPopup({
       .catch(() => {});
   }, [companyId, itemId]);
 
-  // Autofill the rate from the item's purchase history (most recent Purchase
-  // rate) when no rate is set yet — Tally pre-fills this so Amount computes as
-  // qty × rate the moment a quantity is typed. A rate already on a row (typed by
-  // the user, or restored from a saved allocation) is left untouched.
+  // Autofill the rate from the item's history when no rate is set yet — Tally
+  // pre-fills this so Amount computes as qty × rate the moment a quantity is
+  // typed. Sales / Credit Note (sales return) read the last Sales rate; Purchase
+  // / Debit Note (purchase return) read the last Purchase rate. A rate already on
+  // a row (typed by the user, or restored from a saved allocation) is untouched.
   useEffect(() => {
     if (!companyId || !itemId) return;
-    (window as any).api.stockItem
-      .getLastPurchaseRate({ company_id: companyId, item_id: itemId })
+    const fetchRate =
+      rateSource === 'sales'
+        ? (window as any).api.stockItem.getLastSalesRate
+        : (window as any).api.stockItem.getLastPurchaseRate;
+    fetchRate({ company_id: companyId, item_id: itemId })
       .then((res: any) => {
         if (res?.success && res.rate) {
           setRows((prev) => prev.map((r) => (Number(r.rate) > 0 ? r : { ...r, rate: res.rate })));
         }
       })
       .catch(() => {});
-  }, [companyId, itemId]);
+  }, [companyId, itemId, rateSource]);
 
   // Close the batch list on an outside click. Checks the portaled dropdown ref
   // too, since it no longer lives inside the anchor's DOM subtree once portaled.

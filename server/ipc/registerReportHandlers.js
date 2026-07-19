@@ -189,6 +189,21 @@ function register() {
   ipcMain.handle('banking:unreconcile', bankingController.unreconcile);
   ipcMain.handle('banking:getStatement', bankingController.getStatement);
   ipcMain.handle('banking:getSummary', bankingController.getSummary);
+  ipcMain.handle('banking:getBankLedgers', bankingController.getBankLedgers);
+  ipcMain.handle('banking:getChequePrinting', bankingController.getChequePrinting);
+  ipcMain.handle('banking:getDepositSlip', bankingController.getDepositSlip);
+  ipcMain.handle('banking:getPartyLedgers', bankingController.getPartyLedgers);
+  ipcMain.handle('banking:getPaymentAdvice', bankingController.getPaymentAdvice);
+  ipcMain.handle('banking:updateLedgerEmail', bankingController.updateLedgerEmail);
+  ipcMain.handle('banking:getPostDatedSummary', bankingController.getPostDatedSummary);
+  ipcMain.handle('banking:getPostDatedTransactions', bankingController.getPostDatedTransactions);
+  ipcMain.handle('banking:getChequeRegisterBankWise', bankingController.getChequeRegisterBankWise);
+  ipcMain.handle('banking:getChequeRegisterRanges', bankingController.getChequeRegisterRanges);
+  ipcMain.handle(
+    'banking:getChequeRegisterInstruments',
+    bankingController.getChequeRegisterInstruments,
+  );
+  ipcMain.handle('banking:markChequePrinted', bankingController.markChequePrinted);
 
   ipcMain.handle('auditTrail:getAll', auditTrailController.getAll);
   ipcMain.handle('auditTrail:getByEntity', auditTrailController.getByEntity);

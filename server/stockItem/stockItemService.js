@@ -39,7 +39,7 @@ const findItemRow = async (whereSql) => {
 const getAllocations = async (item_id) =>
   db.all(
     sql`SELECT * FROM ${stockItemOpeningAllocations}
-        WHERE ${stockItemOpeningAllocations.itemId} = ${item_id}`
+        WHERE ${stockItemOpeningAllocations.itemId} = ${item_id}`,
   );
 
 const insertAllocation = async (item_id, alloc) => {
@@ -59,7 +59,6 @@ const insertAllocation = async (item_id, alloc) => {
 };
 
 module.exports = {
-
   // ── CREATE ─────────────────────────────────────────────────────────────────
   create: async (data) => {
     try {
@@ -67,10 +66,9 @@ module.exports = {
         sql`SELECT ${stockItems.itemId} FROM ${stockItems}
             WHERE ${stockItems.companyId} = ${data.company_id}
               AND LOWER(${stockItems.name}) = LOWER(${data.name})
-              AND ${stockItems.isActive} = 1`
+              AND ${stockItems.isActive} = 1`,
       );
-      if (exists.length > 0)
-        return { success: false, error: 'Stock Item already exists' };
+      if (exists.length > 0) return { success: false, error: 'Stock Item already exists' };
 
       const opening_value = (data.opening_quantity || 0) * (data.opening_rate || 0);
 
@@ -161,7 +159,7 @@ module.exports = {
       const rows = await db.all(
         sql`SELECT * FROM ${stockItems}
             WHERE ${stockItems.companyId} = ${company_id} AND ${stockItems.isActive} = 1
-            ORDER BY ${stockItems.name} ASC`
+            ORDER BY ${stockItems.name} ASC`,
       );
       return { success: true, stockItems: rows };
     } catch (err) {
@@ -173,8 +171,7 @@ module.exports = {
   getById: async (id) => {
     try {
       const item = await findItemRow(sql`${stockItems.itemId} = ${id}`);
-      if (!item)
-        return { success: false, error: 'Stock Item not found' };
+      if (!item) return { success: false, error: 'Stock Item not found' };
 
       item.allocations = await getAllocations(id);
 
@@ -192,7 +189,7 @@ module.exports = {
             WHERE ${stockItems.companyId} = ${company_id}
               AND ${stockItems.groupId} = ${group_id}
               AND ${stockItems.isActive} = 1
-            ORDER BY ${stockItems.name} ASC`
+            ORDER BY ${stockItems.name} ASC`,
       );
       return { success: true, stockItems: rows };
     } catch (err) {
@@ -208,7 +205,7 @@ module.exports = {
             WHERE ${stockItems.companyId} = ${company_id}
               AND ${stockItems.categoryId} = ${category_id}
               AND ${stockItems.isActive} = 1
-            ORDER BY ${stockItems.name} ASC`
+            ORDER BY ${stockItems.name} ASC`,
       );
       return { success: true, stockItems: rows };
     } catch (err) {
@@ -220,8 +217,7 @@ module.exports = {
   update: async (data) => {
     try {
       const cur = await findItemRow(sql`${stockItems.itemId} = ${data.item_id}`);
-      if (!cur)
-        return { success: false, error: 'Stock Item not found' };
+      if (!cur) return { success: false, error: 'Stock Item not found' };
 
       // duplicate name check
       if (data.name && data.name.toLowerCase() !== cur.name.toLowerCase()) {
@@ -230,10 +226,9 @@ module.exports = {
               WHERE ${stockItems.companyId} = ${cur.company_id}
                 AND LOWER(${stockItems.name}) = LOWER(${data.name})
                 AND ${stockItems.isActive} = 1
-                AND ${stockItems.itemId} != ${data.item_id}`
+                AND ${stockItems.itemId} != ${data.item_id}`,
         );
-        if (dupe.length > 0)
-          return { success: false, error: 'Stock Item name already exists' };
+        if (dupe.length > 0) return { success: false, error: 'Stock Item name already exists' };
       }
 
       const qty = data.opening_quantity ?? cur.opening_quantity;
@@ -282,27 +277,24 @@ module.exports = {
           reorderQuantity: data.reorder_quantity ?? cur.reorder_quantity,
 
           trackBatches:
-            data.track_batches !== undefined
-              ? (data.track_batches ? 1 : 0)
-              : cur.track_batches,
+            data.track_batches !== undefined ? (data.track_batches ? 1 : 0) : cur.track_batches,
           trackExpiry:
-            data.track_expiry !== undefined
-              ? (data.track_expiry ? 1 : 0)
-              : cur.track_expiry,
+            data.track_expiry !== undefined ? (data.track_expiry ? 1 : 0) : cur.track_expiry,
 
           trackDateOfManufacturing:
             data.track_date_of_manufacturing !== undefined
-              ? (data.track_date_of_manufacturing ? 1 : 0)
+              ? data.track_date_of_manufacturing
+                ? 1
+                : 0
               : cur.track_date_of_manufacturing,
           enableCostTracking:
             data.enable_cost_tracking !== undefined
-              ? (data.enable_cost_tracking ? 1 : 0)
+              ? data.enable_cost_tracking
+                ? 1
+                : 0
               : cur.enable_cost_tracking,
 
-          hasBom:
-            data.has_bom !== undefined
-              ? (data.has_bom ? 1 : 0)
-              : cur.has_bom,
+          hasBom: data.has_bom !== undefined ? (data.has_bom ? 1 : 0) : cur.has_bom,
           bomName: data.bom_name ?? cur.bom_name,
 
           exciseApplicable: data.excise_applicable ?? cur.excise_applicable,
@@ -347,13 +339,9 @@ module.exports = {
   delete: async (id) => {
     try {
       const existing = await findItemRow(sql`${stockItems.itemId} = ${id}`);
-      if (!existing)
-        return { success: false, error: 'Stock Item not found' };
+      if (!existing) return { success: false, error: 'Stock Item not found' };
 
-      await db
-        .update(stockItems)
-        .set({ isActive: 0 })
-        .where(eq(stockItems.itemId, id));
+      await db.update(stockItems).set({ isActive: 0 }).where(eq(stockItems.itemId, id));
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -365,12 +353,20 @@ module.exports = {
     try {
       // Voucher types that increase stock quantity
       const stockInTypes = [
-        'Purchase', 'Receipt Note', 'Rejection In', 'Material In', 'Credit Note',
+        'Purchase',
+        'Receipt Note',
+        'Rejection In',
+        'Material In',
+        'Credit Note',
       ];
 
       // Voucher types that decrease stock quantity
       const stockOutTypes = [
-        'Sales', 'Delivery Note', 'Rejection Out', 'Material Out', 'Debit Note',
+        'Sales',
+        'Delivery Note',
+        'Rejection Out',
+        'Material Out',
+        'Debit Note',
       ];
 
       // Complex analytical query kept as typed `sql` (multi-join, GROUP BY, CASE,
@@ -384,9 +380,15 @@ module.exports = {
             COALESCE(SUM(
               CASE
                 WHEN ${sql.raw(TRACKING_BILLED)} THEN 0
-                WHEN ${vouchers.voucherType} IN (${sql.join(stockInTypes.map((t) => sql`${t}`), sql`, `)})
+                WHEN ${vouchers.voucherType} IN (${sql.join(
+                  stockInTypes.map((t) => sql`${t}`),
+                  sql`, `,
+                )})
                   THEN ${voucherStockEntries.quantity}
-                WHEN ${vouchers.voucherType} IN (${sql.join(stockOutTypes.map((t) => sql`${t}`), sql`, `)})
+                WHEN ${vouchers.voucherType} IN (${sql.join(
+                  stockOutTypes.map((t) => sql`${t}`),
+                  sql`, `,
+                )})
                   THEN -${voucherStockEntries.quantity}
                 WHEN ${vouchers.voucherType} IN ('Stock Journal', 'Manufacturing Journal') AND ${voucherStockEntries.isSource} = 0
                   THEN ${voucherStockEntries.quantity}
@@ -401,7 +403,7 @@ module.exports = {
           WHERE ${stockItems.companyId} = ${company_id} AND ${stockItems.isActive} = 1
           GROUP BY ${stockItems.itemId}
           ORDER BY ${stockItems.name} ASC
-        `
+        `,
       );
 
       const balances = {};
@@ -424,7 +426,7 @@ module.exports = {
             JOIN ${physicalStockEntries} ON ${physicalStockEntries.physicalStockEntryId} = ${physicalStockEntryLines.physicalStockEntryId}
             WHERE ${physicalStockEntries.companyId} = ${company_id} AND ${physicalStockEntryLines.stockItemId} IS NOT NULL
             ORDER BY ${physicalStockEntries.voucherDate} DESC
-          `
+          `,
         );
 
         const seenItems = new Set();
@@ -442,9 +444,15 @@ module.exports = {
               sql`
                 SELECT COALESCE(SUM(
                   CASE
-                    WHEN ${vouchers.voucherType} IN (${sql.join(stockInTypes.map((t) => sql`${t}`), sql`, `)})
+                    WHEN ${vouchers.voucherType} IN (${sql.join(
+                      stockInTypes.map((t) => sql`${t}`),
+                      sql`, `,
+                    )})
                       THEN ${voucherStockEntries.quantity}
-                    WHEN ${vouchers.voucherType} IN (${sql.join(stockOutTypes.map((t) => sql`${t}`), sql`, `)})
+                    WHEN ${vouchers.voucherType} IN (${sql.join(
+                      stockOutTypes.map((t) => sql`${t}`),
+                      sql`, `,
+                    )})
                       THEN -${voucherStockEntries.quantity}
                     WHEN ${vouchers.voucherType} IN ('Stock Journal', 'Manufacturing Journal') AND ${voucherStockEntries.isSource} = 0
                       THEN ${voucherStockEntries.quantity}
@@ -456,7 +464,7 @@ module.exports = {
                 FROM ${voucherStockEntries}
                 JOIN ${vouchers} ON ${vouchers.voucherId} = ${voucherStockEntries.voucherId} AND ${vouchers.isCancelled} = 0
                 WHERE ${voucherStockEntries.stockItemId} = ${itemId} AND ${vouchers.date} > ${physDate}
-              `
+              `,
             );
             const postMovement = Number(postPhysResult[0]?.post_qty) || 0;
             balances[itemId] = physicalQty + postMovement;
@@ -464,7 +472,9 @@ module.exports = {
             balances[itemId] = physicalQty;
           }
         }
-      } catch (_physErr) { /* keep voucher-only balances */ }
+      } catch (_physErr) {
+        /* keep voucher-only balances */
+      }
 
       return { success: true, balances };
     } catch (err) {
@@ -478,8 +488,20 @@ module.exports = {
   // overriding a godown's balance (plus post-count movements).
   getStockBalancesByGodown: async (company_id, item_id) => {
     try {
-      const stockInTypes = ['Purchase', 'Receipt Note', 'Rejection In', 'Material In', 'Credit Note'];
-      const stockOutTypes = ['Sales', 'Delivery Note', 'Rejection Out', 'Material Out', 'Debit Note'];
+      const stockInTypes = [
+        'Purchase',
+        'Receipt Note',
+        'Rejection In',
+        'Material In',
+        'Credit Note',
+      ];
+      const stockOutTypes = [
+        'Sales',
+        'Delivery Note',
+        'Rejection Out',
+        'Material Out',
+        'Debit Note',
+      ];
 
       const moveRows = await db.all(
         sql`
@@ -487,9 +509,15 @@ module.exports = {
             COALESCE(SUM(
               CASE
                 WHEN ${sql.raw(TRACKING_BILLED)} THEN 0
-                WHEN ${vouchers.voucherType} IN (${sql.join(stockInTypes.map((t) => sql`${t}`), sql`, `)})
+                WHEN ${vouchers.voucherType} IN (${sql.join(
+                  stockInTypes.map((t) => sql`${t}`),
+                  sql`, `,
+                )})
                   THEN ${voucherStockEntries.quantity}
-                WHEN ${vouchers.voucherType} IN (${sql.join(stockOutTypes.map((t) => sql`${t}`), sql`, `)})
+                WHEN ${vouchers.voucherType} IN (${sql.join(
+                  stockOutTypes.map((t) => sql`${t}`),
+                  sql`, `,
+                )})
                   THEN -${voucherStockEntries.quantity}
                 WHEN ${vouchers.voucherType} IN ('Stock Journal', 'Manufacturing Journal') AND ${voucherStockEntries.isSource} = 0
                   THEN ${voucherStockEntries.quantity}
@@ -504,7 +532,7 @@ module.exports = {
             AND ${vouchers.companyId} = ${company_id}
             AND ${voucherStockEntries.godownId} IS NOT NULL
           GROUP BY ${voucherStockEntries.godownId}
-        `
+        `,
       );
 
       // Seed each godown from its OPENING allocation, so an item whose per-godown
@@ -518,7 +546,7 @@ module.exports = {
           WHERE ${stockItemOpeningAllocations.itemId} = ${item_id}
             AND ${stockItemOpeningAllocations.godownId} IS NOT NULL
           GROUP BY ${stockItemOpeningAllocations.godownId}
-        `
+        `,
       );
 
       const balances = {};
@@ -542,7 +570,7 @@ module.exports = {
         sql`SELECT ${stockItems.openingQuantity} AS opening_quantity
             FROM ${stockItems}
             WHERE ${stockItems.itemId} = ${item_id}
-              AND ${stockItems.companyId} = ${company_id}`
+              AND ${stockItems.companyId} = ${company_id}`,
       );
       const openingScalar = Number(itemRow[0]?.opening_quantity) || 0;
       const allocatedOpening = openingRows.reduce((s, r) => s + (Number(r.qty) || 0), 0);
@@ -553,9 +581,15 @@ module.exports = {
           SELECT COALESCE(SUM(
             CASE
               WHEN ${sql.raw(TRACKING_BILLED)} THEN 0
-              WHEN ${vouchers.voucherType} IN (${sql.join(stockInTypes.map((t) => sql`${t}`), sql`, `)})
+              WHEN ${vouchers.voucherType} IN (${sql.join(
+                stockInTypes.map((t) => sql`${t}`),
+                sql`, `,
+              )})
                 THEN ${voucherStockEntries.quantity}
-              WHEN ${vouchers.voucherType} IN (${sql.join(stockOutTypes.map((t) => sql`${t}`), sql`, `)})
+              WHEN ${vouchers.voucherType} IN (${sql.join(
+                stockOutTypes.map((t) => sql`${t}`),
+                sql`, `,
+              )})
                 THEN -${voucherStockEntries.quantity}
               WHEN ${vouchers.voucherType} IN ('Stock Journal', 'Manufacturing Journal') AND ${voucherStockEntries.isSource} = 0
                 THEN ${voucherStockEntries.quantity}
@@ -569,7 +603,7 @@ module.exports = {
           WHERE ${voucherStockEntries.stockItemId} = ${item_id}
             AND ${vouchers.companyId} = ${company_id}
             AND ${voucherStockEntries.godownId} IS NULL
-        `
+        `,
       );
       const nullGodownMovement = Number(nullMoveRows[0]?.qty) || 0;
 
@@ -581,7 +615,7 @@ module.exports = {
               WHERE ${godowns.companyId} = ${company_id}
                 AND ${godowns.isMainLocation} = 1
                 AND ${godowns.isActive} = 1
-              LIMIT 1`
+              LIMIT 1`,
         );
         const mainId = mainRows[0]?.godown_id;
         if (mainId != null) balances[mainId] = (balances[mainId] || 0) + mainLocationRemainder;
@@ -600,7 +634,7 @@ module.exports = {
               AND ${physicalStockEntryLines.stockItemId} = ${item_id}
               AND ${physicalStockEntryLines.godownId} IS NOT NULL
             ORDER BY ${physicalStockEntries.voucherDate} DESC
-          `
+          `,
         );
         const seen = new Set();
         for (const ph of physRows) {
@@ -614,9 +648,15 @@ module.exports = {
               sql`
                 SELECT COALESCE(SUM(
                   CASE
-                    WHEN ${vouchers.voucherType} IN (${sql.join(stockInTypes.map((t) => sql`${t}`), sql`, `)})
+                    WHEN ${vouchers.voucherType} IN (${sql.join(
+                      stockInTypes.map((t) => sql`${t}`),
+                      sql`, `,
+                    )})
                       THEN ${voucherStockEntries.quantity}
-                    WHEN ${vouchers.voucherType} IN (${sql.join(stockOutTypes.map((t) => sql`${t}`), sql`, `)})
+                    WHEN ${vouchers.voucherType} IN (${sql.join(
+                      stockOutTypes.map((t) => sql`${t}`),
+                      sql`, `,
+                    )})
                       THEN -${voucherStockEntries.quantity}
                     WHEN ${vouchers.voucherType} IN ('Stock Journal', 'Manufacturing Journal') AND ${voucherStockEntries.isSource} = 0
                       THEN ${voucherStockEntries.quantity}
@@ -630,14 +670,16 @@ module.exports = {
                 WHERE ${voucherStockEntries.stockItemId} = ${item_id}
                   AND ${voucherStockEntries.godownId} = ${g}
                   AND ${vouchers.date} > ${physDate}
-              `
+              `,
             );
             balances[g] = physQty + (Number(post[0]?.post_qty) || 0);
           } else {
             balances[g] = physQty;
           }
         }
-      } catch (_physErr) { /* keep voucher-only balances */ }
+      } catch (_physErr) {
+        /* keep voucher-only balances */
+      }
 
       return { success: true, balances };
     } catch (err) {
@@ -664,7 +706,35 @@ module.exports = {
             AND ${voucherStockEntries.rate} > 0
           ORDER BY ${vouchers.date} DESC, ${vouchers.voucherId} DESC
           LIMIT 1
-        `
+        `,
+      );
+      const rate = rows.length ? Number(rows[0].rate) || 0 : 0;
+      return { success: true, rate: rate > 0 ? rate : null };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Rate from the item's sales history — the most recent Sales voucher line (with
+  // a positive rate). Used to auto-fill the rate on Sales / Credit Note (sales
+  // return) item allocations. Returns { rate: null } when never sold.
+  getLastSalesRate: async (company_id, item_id) => {
+    try {
+      const rows = await db.all(
+        sql`
+          SELECT ${voucherStockEntries.rate} AS rate
+          FROM ${voucherStockEntries}
+          JOIN ${vouchers} ON ${vouchers.voucherId} = ${voucherStockEntries.voucherId}
+          WHERE ${voucherStockEntries.stockItemId} = ${item_id}
+            AND ${vouchers.companyId} = ${company_id}
+            AND ${vouchers.voucherType} = 'Sales'
+            AND ${vouchers.isCancelled} = 0
+            AND COALESCE(${vouchers.isOptional}, 0) = 0
+            AND COALESCE(${vouchers.isPostDated}, 0) = 0
+            AND ${voucherStockEntries.rate} > 0
+          ORDER BY ${vouchers.date} DESC, ${vouchers.voucherId} DESC
+          LIMIT 1
+        `,
       );
       const rate = rows.length ? Number(rows[0].rate) || 0 : 0;
       return { success: true, rate: rate > 0 ? rate : null };
@@ -678,17 +748,35 @@ module.exports = {
   // movement across vouchers.
   getActiveBatches: async (company_id, item_id) => {
     try {
-      const stockInTypes = ['Purchase', 'Receipt Note', 'Rejection In', 'Material In', 'Credit Note'];
-      const stockOutTypes = ['Sales', 'Delivery Note', 'Rejection Out', 'Material Out', 'Debit Note'];
+      const stockInTypes = [
+        'Purchase',
+        'Receipt Note',
+        'Rejection In',
+        'Material In',
+        'Credit Note',
+      ];
+      const stockOutTypes = [
+        'Sales',
+        'Delivery Note',
+        'Rejection Out',
+        'Material Out',
+        'Debit Note',
+      ];
       const rows = await db.all(
         sql`
           SELECT vb.batch_number AS name,
                  MAX(vb.expiry_date) AS expiry,
                  COALESCE(SUM(
                    CASE
-                     WHEN ${vouchers.voucherType} IN (${sql.join(stockInTypes.map((t) => sql`${t}`), sql`, `)})
+                     WHEN ${vouchers.voucherType} IN (${sql.join(
+                       stockInTypes.map((t) => sql`${t}`),
+                       sql`, `,
+                     )})
                        THEN vb.quantity
-                     WHEN ${vouchers.voucherType} IN (${sql.join(stockOutTypes.map((t) => sql`${t}`), sql`, `)})
+                     WHEN ${vouchers.voucherType} IN (${sql.join(
+                       stockOutTypes.map((t) => sql`${t}`),
+                       sql`, `,
+                     )})
                        THEN -vb.quantity
                      ELSE 0
                    END
@@ -701,9 +789,13 @@ module.exports = {
             AND vb.batch_number IS NOT NULL AND vb.batch_number != ''
           GROUP BY vb.batch_number
           ORDER BY vb.batch_number ASC
-        `
+        `,
       );
-      const batches = rows.map((r) => ({ name: r.name, expiry: r.expiry || '', balance: Number(r.balance) || 0 }));
+      const batches = rows.map((r) => ({
+        name: r.name,
+        expiry: r.expiry || '',
+        balance: Number(r.balance) || 0,
+      }));
       return { success: true, batches };
     } catch (err) {
       return { success: false, error: err.message };

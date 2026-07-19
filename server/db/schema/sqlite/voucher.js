@@ -193,6 +193,8 @@ const voucherBankDetails = sqliteTable('voucher_bank_details', {
   favouringName: text('favouring_name'),
   transferMode: text('transfer_mode'),
   allocationsJson: text('allocations_json'),
+  // Cheque Printing (Banking): 1 once the instrument has been printed. Added via ALTER in source init().
+  chequePrinted: integer('cheque_printed').default(0),
 });
 
 // ---------------------------------------------------------------------------

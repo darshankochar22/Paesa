@@ -152,6 +152,8 @@ contextBridge.exposeInMainWorld('api', {
       invoke('stockItem:getStockBalancesByGodown', { company_id, item_id }),
     getLastPurchaseRate: ({ company_id, item_id }) =>
       invoke('stockItem:getLastPurchaseRate', { company_id, item_id }),
+    getLastSalesRate: ({ company_id, item_id }) =>
+      invoke('stockItem:getLastSalesRate', { company_id, item_id }),
     getActiveBatches: ({ company_id, item_id }) =>
       invoke('stockItem:getActiveBatches', { company_id, item_id }),
   },
@@ -470,6 +472,77 @@ contextBridge.exposeInMainWorld('api', {
       invoke('banking:getStatement', { company_id, fy_id, ledger_id, from_date, to_date }),
     getSummary: (company_id, fy_id, ledger_id) =>
       invoke('banking:getSummary', { company_id, fy_id, ledger_id }),
+    getBankLedgers: (company_id) => invoke('banking:getBankLedgers', { company_id }),
+    getChequePrinting: (company_id, fy_id, ledger_id, from_date, to_date, include_printed) =>
+      invoke('banking:getChequePrinting', {
+        company_id,
+        fy_id,
+        ledger_id,
+        from_date,
+        to_date,
+        include_printed,
+      }),
+    getDepositSlip: (company_id, fy_id, ledger_id, from_date, to_date, include_printed) =>
+      invoke('banking:getDepositSlip', {
+        company_id,
+        fy_id,
+        ledger_id,
+        from_date,
+        to_date,
+        include_printed,
+      }),
+    getPartyLedgers: (company_id) => invoke('banking:getPartyLedgers', { company_id }),
+    getPaymentAdvice: (company_id, fy_id, ledger_id, from_date, to_date, reconciled_only) =>
+      invoke('banking:getPaymentAdvice', {
+        company_id,
+        fy_id,
+        ledger_id,
+        from_date,
+        to_date,
+        reconciled_only,
+      }),
+    updateLedgerEmail: (ledger_id, email) =>
+      invoke('banking:updateLedgerEmail', { ledger_id, email }),
+    getPostDatedSummary: (company_id, fy_id, ledger_id) =>
+      invoke('banking:getPostDatedSummary', { company_id, fy_id, ledger_id }),
+    getPostDatedTransactions: (company_id, fy_id, ledger_id, from_date, to_date) =>
+      invoke('banking:getPostDatedTransactions', {
+        company_id,
+        fy_id,
+        ledger_id,
+        from_date,
+        to_date,
+      }),
+    getChequeRegisterBankWise: (company_id, fy_id, from_date, to_date) =>
+      invoke('banking:getChequeRegisterBankWise', { company_id, fy_id, from_date, to_date }),
+    getChequeRegisterRanges: (company_id, fy_id, ledger_id, from_date, to_date) =>
+      invoke('banking:getChequeRegisterRanges', {
+        company_id,
+        fy_id,
+        ledger_id,
+        from_date,
+        to_date,
+      }),
+    getChequeRegisterInstruments: (
+      company_id,
+      fy_id,
+      ledger_id,
+      range,
+      from_date,
+      to_date,
+      status,
+    ) =>
+      invoke('banking:getChequeRegisterInstruments', {
+        company_id,
+        fy_id,
+        ledger_id,
+        range,
+        from_date,
+        to_date,
+        status,
+      }),
+    markChequePrinted: (bank_detail_ids, printed) =>
+      invoke('banking:markChequePrinted', { bank_detail_ids, printed }),
   },
   auditTrail: {
     getAll: (company_id, limit) => invoke('auditTrail:getAll', { company_id, limit }),

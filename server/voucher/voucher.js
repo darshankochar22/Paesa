@@ -128,6 +128,11 @@ const init = async (db) => {
     await db.execute(`ALTER TABLE voucher_bank_details ADD COLUMN allocations_json TEXT`);
   } catch (err) {}
   try {
+    await db.execute(
+      `ALTER TABLE voucher_bank_details ADD COLUMN cheque_printed INTEGER DEFAULT 0`,
+    );
+  } catch (err) {}
+  try {
     await db.execute(`ALTER TABLE voucher_receipt_details ADD COLUMN receipt_doc_date TEXT`);
   } catch (err) {}
   try {

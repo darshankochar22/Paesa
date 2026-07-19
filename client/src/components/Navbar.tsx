@@ -219,10 +219,7 @@ export default function Navbar() {
     },
     {
       name: 'Capital',
-      options: [
-        { label: 'Loans' },
-        { label: 'Banking', path: '/utilities/banking' },
-      ] as OptionType[],
+      options: [{ label: 'Loans' }] as OptionType[],
     },
     {
       name: 'Help',

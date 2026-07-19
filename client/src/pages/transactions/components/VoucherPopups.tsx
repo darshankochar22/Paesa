@@ -446,6 +446,9 @@ export default function VoucherPopups({
             godowns={form.allGodowns}
             initialAllocations={form.activeAllocation.initialAllocations}
             showBatch={form.activeAllocation.showBatch}
+            rateSource={
+              ['Sales', 'Credit Note'].includes(effectiveVoucherType) ? 'sales' : 'purchase'
+            }
             onClose={() => form.setActiveAllocation(null)}
             onSave={handleSaveBatchAllocations}
           />
