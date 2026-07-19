@@ -268,6 +268,7 @@ module.exports = {
             data.is_post_dated !== undefined ? (data.is_post_dated ? 1 : 0) : current.is_post_dated,
           applicableUpto: nullify(data.applicable_upto) ?? nullify(current.applicable_upto),
           voucherClass: nullify(data.voucher_class) ?? nullify(current.voucher_class),
+          entryMode: nullify(data.entry_mode) ?? nullify(current.entry_mode),
           salesPurchaseLedgerId:
             nullify(data.sales_purchase_ledger_id) ?? nullify(current.sales_purchase_ledger_id),
           // GST snapshot: the recomputation above already resolved the right registration

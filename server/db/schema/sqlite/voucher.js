@@ -34,6 +34,9 @@ const vouchers = sqliteTable('vouchers', {
   applicableUpto: text('applicable_upto'),
   // Selected Voucher Type Class ("Name of Class") name, if any.
   voucherClass: text('voucher_class'),
+  // How an accounting voucher was entered: 'single' (Account + Particulars) or
+  // 'double' (Dr/Cr). Null for non-accounting / legacy rows → treated as double.
+  entryMode: text('entry_mode'),
   // Sales/Purchase ledger on non-accounting inventory vouchers (Receipt Note etc.) —
   // informational only, never posted to voucher_entries.
   salesPurchaseLedgerId: integer('sales_purchase_ledger_id'),

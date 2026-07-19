@@ -3,6 +3,7 @@ import type { ParticularRow, ActiveField } from '../hooks/useVoucherForm';
 import BillRefLines from './BillRefLines';
 import InventoryAllocLines from './InventoryAllocLines';
 import CostCentreAllocLines from './CostCentreAllocLines';
+import { rowBalanceLabel } from '../utils/projectBalance';
 
 interface Props {
   rows: ParticularRow[];
@@ -136,7 +137,7 @@ export default function VoucherDoubleEntryTable({
                         isOverdrawn(row) ? 'text-red-600' : 'text-gray-500'
                       }`}
                     >
-                      Bal: {row.ledgerBalanceLabel || row.ledgerBalance}
+                      Bal: {rowBalanceLabel(row)}
                     </span>
                   )}
                   <BillRefLines billReferences={row.billReferences} dcType={row.type} />

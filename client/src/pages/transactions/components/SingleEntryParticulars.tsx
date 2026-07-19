@@ -1,4 +1,5 @@
 import type { useVoucherForm, ParticularRow } from '../hooks/useVoucherForm';
+import { rowBalanceLabel } from '../utils/projectBalance';
 
 /**
  * The single-entry "Particulars | Amount" ledger grid: a ledger picker plus a typed
@@ -33,27 +34,30 @@ export default function SingleEntryParticulars({
           return (
             <div
               key={row.id}
-              className="flex items-center border-b border-gray-100 min-h-[22px] group"
+              className="flex items-start border-b border-gray-100 min-h-[22px] group"
             >
-              <div className="flex-1 flex items-center px-3 gap-1">
-                <input
-                  data-particular-ledger={idx + 1}
-                  type="text"
-                  className="flex-1 text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
-                  value={isActive ? form.ledgerSearchTerm : (row.ledger?.name ?? '')}
-                  placeholder={idx === 0 ? firstRowPlaceholder : ''}
-                  onFocus={() => form.handleFieldFocus({ type: 'particular', rowId: row.id })}
-                  onChange={(e) => {
-                    form.setLedgerSearchTerm(e.target.value);
-                    if (!row.ledger) form.handleFieldFocus({ type: 'particular', rowId: row.id });
-                  }}
-                  autoComplete="off"
-                />
-                {row.ledgerBalance ? (
-                  <span className="text-xs text-gray-500 italic shrink-0">
-                    ({row.ledgerBalanceLabel || row.ledgerBalance})
-                  </span>
-                ) : null}
+              <div className="flex-1 flex items-start px-3 gap-1">
+                <div className="flex-1 flex flex-col min-w-0">
+                  <input
+                    data-particular-ledger={idx + 1}
+                    type="text"
+                    className="w-full text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
+                    value={isActive ? form.ledgerSearchTerm : (row.ledger?.name ?? '')}
+                    placeholder={idx === 0 ? firstRowPlaceholder : ''}
+                    onFocus={() => form.handleFieldFocus({ type: 'particular', rowId: row.id })}
+                    onChange={(e) => {
+                      form.setLedgerSearchTerm(e.target.value);
+                      if (!row.ledger) form.handleFieldFocus({ type: 'particular', rowId: row.id });
+                    }}
+                    autoComplete="off"
+                  />
+                  {/* Tally shows the running balance on its own indented line under the ledger. */}
+                  {row.ledgerBalance ? (
+                    <span className="text-xs text-gray-500 italic pl-4">
+                      Cur Bal: {rowBalanceLabel(row)}
+                    </span>
+                  ) : null}
+                </div>
                 {form.particulars.length > 1 && (
                   <button
                     type="button"

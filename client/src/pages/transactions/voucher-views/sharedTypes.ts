@@ -175,6 +175,10 @@ export interface Voucher {
   is_optional: number;
   is_post_dated: number;
   applicable_upto: string | null;
+  // Accounting vouchers (Receipt/Payment/Contra/Journal): 'single' if entered in
+  // single-entry (Account + Particulars) mode, 'double' / null for double-entry.
+  // Drives which read-only layout the voucher view renders.
+  entry_mode?: string | null;
   created_at: string;
   updated_at: string;
   entries: VoucherEntry[];

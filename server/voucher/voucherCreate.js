@@ -228,6 +228,7 @@ module.exports = {
             isPostDated: data.is_post_dated ? 1 : 0,
             applicableUpto: nullify(data.applicable_upto) || null,
             voucherClass: nullify(data.voucher_class) || null,
+            entryMode: nullify(data.entry_mode) || null,
             salesPurchaseLedgerId: nullify(data.sales_purchase_ledger_id) || null,
             // GST snapshot captured at first save (immutable thereafter). Non-GST-computed
             // types (Receipt/Payment/Journal/orders/…) still store the registration the

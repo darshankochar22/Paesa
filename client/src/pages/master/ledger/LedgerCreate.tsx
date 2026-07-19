@@ -205,7 +205,7 @@ export default function LedgerCreate() {
         e.preventDefault();
         navigate('/master/create');
       }
-      if (e.altKey && (e.key === 'a' || e.key === 'A') && !showBankPopup) {
+      if ((e.altKey || e.ctrlKey) && (e.key === 'a' || e.key === 'A') && !showBankPopup) {
         e.preventDefault();
         handleSubmit();
       }

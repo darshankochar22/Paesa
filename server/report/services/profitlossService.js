@@ -233,9 +233,15 @@ const profitLoss = async (company_id, fy_id, from_date = null, to_date = null) =
           sql`SELECT start_date, end_date FROM financial_years WHERE fy_id = ${fy_id}`,
         );
         const fyStart = fyRow[0]?.start_date || null;
-        const fyEnd = fyRow[0]?.end_date || null;
         const periodStart = from_date || fyStart;
-        const periodEnd = to_date || fyEnd;
+        // Closing stock is valued as-at the period end ONLY when an explicit end
+        // date is requested. For a full-year view (no to_date) leave it unbounded so
+        // it covers every voucher belonging to this fy_id — matching the entry scope
+        // above and the Balance Sheet's own closing-stock valuation. Clamping to the
+        // FY's nominal calendar end silently dropped stock from vouchers dated after
+        // it (but still filed under this FY), making net profit disagree with the
+        // sheet's Current Assets by exactly that amount.
+        const periodEnd = to_date || null;
 
         if (periodStart && fyStart && periodStart > fyStart) {
           // Mid-year start: opening stock = closing valuation the day before.

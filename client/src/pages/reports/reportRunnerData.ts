@@ -73,12 +73,17 @@ export async function loadReportData(ctx: LoadReportCtx) {
         const queryParams = new URLSearchParams(location.search);
         const ledgerIdParam = queryParams.get('ledger_id') || (location.state as any)?.ledger_id;
         const ledgerId = ledgerIdParam ? Number(ledgerIdParam) : 1;
+        // Drilling from the Ledger Monthly Summary passes a month name; forward it so
+        // the backend matches by calendar-month-within-FY (year-agnostic) rather than
+        // an FY-reconstructed date window that can drop out-of-nominal-year vouchers.
+        const monthParam = queryParams.get('month');
         res = await window.api.report.ledgerReport(
           selectedCompany.company_id,
           activeFY.fy_id,
           ledgerId,
           fromDate,
           toDate,
+          monthParam || undefined,
         );
       } else if (
         definition.apiMethod === 'cashBook' ||

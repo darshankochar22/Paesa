@@ -46,6 +46,9 @@ export function useAccountingRows({
   // ── Account field ──────────────────────────────────────────────────────────
   const [accountLedger, setAccountLedger] = useState<LedgerType | null>(null);
   const [accountBalance, setAccountBalance] = useState<string>('');
+  // Signed stored balance (positive on the ledger's natural side) — feeds the
+  // Tally-style projected "Current balance" that includes the amount being keyed.
+  const [accountBalanceRaw, setAccountBalanceRaw] = useState<string>('');
 
   // ── Single-entry particulars ───────────────────────────────────────────────
   const [particulars, setParticulars] = useState<ParticularRow[]>(
@@ -404,6 +407,7 @@ export function useAccountingRows({
     (defaultParticular: 'Dr' | 'Cr', _currentVoucherType?: string) => {
       setAccountLedger(null);
       setAccountBalance('');
+      setAccountBalanceRaw('');
       setParticulars([makeParticularRow(defaultParticular)]);
       // Journal / Memorandum both list Dr above Cr (TallyPrime order).
       setJournalRows([makeParticularRow('Dr'), makeParticularRow('Cr')]);
@@ -616,6 +620,8 @@ export function useAccountingRows({
     setAccountLedger,
     accountBalance,
     setAccountBalance,
+    accountBalanceRaw,
+    setAccountBalanceRaw,
     particulars,
     setParticulars,
     contraEntryMode,

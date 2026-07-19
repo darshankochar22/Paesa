@@ -289,6 +289,38 @@ const CONSIGNEE_MAP: Record<ColKey, keyof PartyDetails> = {
   addressType: 'address_type',
 };
 
+// Tally's "New Party" quick-create: a name-only box that returns the typed name
+// to the Party Details form (no full Ledger Creation screen). Enter on the single
+// field accepts (TallyFieldPopup's last-field rule); Esc cancels.
+function NewPartyPopup({
+  onCancel,
+  onAccept,
+}: {
+  onCancel: () => void;
+  onAccept: (name: string) => void;
+}) {
+  const [name, setName] = useState('');
+  const accept = () => {
+    const n = name.trim();
+    if (n) onAccept(n);
+  };
+  return (
+    <TallyFieldPopup title="New Party" width={320} onClose={onCancel} onAccept={accept}>
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-black shrink-0">Name</span>
+        <span className="text-sm text-black shrink-0">:</span>
+        <input
+          type="text"
+          autoFocus
+          className={`${inputCls} w-full`}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+      </div>
+    </TallyFieldPopup>
+  );
+}
+
 export default function PartyDetailsPopup({
   partyLedger,
   allLedgers,
@@ -357,6 +389,10 @@ export default function PartyDetailsPopup({
   // supply) opens the same right-side panel; this says which one is open.
   const [picker, setPicker] = useState<{ side: PickSide; field: PickField } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  // Which side's "New Party" quick-create box is open (null = none). While open,
+  // the ledger picker is closed and the parent popup's keys are suspended so the
+  // small box owns Enter/Ctrl+A/Esc.
+  const [newParty, setNewParty] = useState<PickSide | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   // Set while we programmatically restore focus to a field whose list must stay shut.
   const quietFocusRef = useRef(false);
@@ -505,6 +541,28 @@ export default function PartyDetailsPopup({
     if (prev) setTimeout(() => focusAfterField(prev.side, prev.field), 0);
   };
 
+  // "New Party": close the ledger picker, remember the side, open the name box.
+  const openNewParty = (side: PickSide) => {
+    setPicker(null);
+    setSearchTerm('');
+    setNewParty(side);
+  };
+  // Typed name → fill that side's Name + Mailing Name, then hand focus back to
+  // the form so Enter keeps advancing.
+  const acceptNewParty = (name: string) => {
+    const side = newParty;
+    if (!side) return;
+    const map = side === 'consignee' ? CONSIGNEE_MAP : BUYER_MAP;
+    setForm((prev) => ({ ...prev, [map.name]: name, [map.mailingName]: name }));
+    setNewParty(null);
+    setTimeout(() => focusAfterField(side, 'name'), 0);
+  };
+  const cancelNewParty = () => {
+    const side = newParty;
+    setNewParty(null);
+    if (side) setTimeout(() => focusAfterField(side, 'name'), 0);
+  };
+
   // While a picker is open, Esc / Cancel should close the picker, not the whole
   // popup (preserves the previous guarded-Escape behavior).
   const handleClose = () => {
@@ -527,6 +585,7 @@ export default function PartyDetailsPopup({
     highlight: string;
     onCreateNew?: () => void;
     createLabel?: string;
+    onNewParty?: () => void;
   } | null = (() => {
     if (!picker) return null;
     const { side, field } = picker;
@@ -542,6 +601,7 @@ export default function PartyDetailsPopup({
           highlight: cur('name'),
           onCreateNew: onCreateLedger,
           createLabel: 'Create',
+          onNewParty: () => openNewParty(side),
         };
       case 'addressType':
         return {
@@ -567,6 +627,7 @@ export default function PartyDetailsPopup({
         onClose={handleClose}
         onAccept={handleAccept}
         width={840}
+        disabled={newParty !== null}
       >
         <div ref={contentRef} className="space-y-2">
           {natureOfReturnLabel && (
@@ -666,10 +727,13 @@ export default function PartyDetailsPopup({
             onClose={closePicker}
             onCreateNew={pickerConfig.onCreateNew}
             createLabel={pickerConfig.createLabel}
+            onNewParty={pickerConfig.onNewParty}
             height="h-screen"
           />
         </div>
       )}
+
+      {newParty && <NewPartyPopup onCancel={cancelNewParty} onAccept={acceptNewParty} />}
     </>
   );
 }

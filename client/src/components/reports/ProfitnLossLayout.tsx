@@ -353,14 +353,32 @@ function ProfitLossLayoutInner({ fromDate, toDate }: ProfitLossLayoutProps) {
       return;
     }
 
-    reportApi(selectedCompany.company_id, activeFY.fy_id, fromDate, toDate)
+    // Default view = the whole financial year. In that case scope by fy_id (send no
+    // dates) exactly like the Balance Sheet, so every voucher filed under this FY is
+    // included even when its date falls outside the FY's nominal calendar span.
+    // Clamping to the FY calendar dates here made the P&L silently drop such vouchers
+    // while the Balance Sheet still counted them — the two reports then disagreed.
+    // Only an explicitly narrower period (F2) date-filters.
+    const isWholeFy =
+      (!fromDate || fromDate === activeFY.start_date) && (!toDate || toDate === activeFY.end_date);
+    const apiFrom = isWholeFy ? undefined : fromDate;
+    const apiTo = isWholeFy ? undefined : toDate;
+
+    reportApi(selectedCompany.company_id, activeFY.fy_id, apiFrom, apiTo)
       .then((res: any) => {
         if (res?.success) setData(normalizePnL(res));
         else setError(res?.error || 'Failed to load Profit & Loss report.');
       })
       .catch((e: any) => setError(e?.message || 'Unknown error'))
       .finally(() => setLoading(false));
-  }, [selectedCompany?.company_id, activeFY?.fy_id, fromDate, toDate]);
+  }, [
+    selectedCompany?.company_id,
+    activeFY?.fy_id,
+    activeFY?.start_date,
+    activeFY?.end_date,
+    fromDate,
+    toDate,
+  ]);
 
   const drillGroup = React.useCallback(
     (group: GroupRow) => navigate(`/reports/accounts/group-summary/${group.group_id}`),

@@ -3,6 +3,7 @@ import FieldRow from './FieldRow';
 import BalanceIndicator from './BalanceIndicator';
 import VoucherDoubleEntryTable from './VoucherDoubleEntryTable';
 import SingleEntryParticulars from './SingleEntryParticulars';
+import { projectedBalanceLabel } from '../utils/projectBalance';
 
 /**
  * Shared body for the accounting vouchers (Payment, Receipt, Contra, Journal).
@@ -30,6 +31,19 @@ export default function AccountingVoucherBody({
   onRemoveDoubleRow,
 }: Props) {
   if (entryMode === 'single') {
+    // The single "Account" ledger takes the whole voucher on the side opposite
+    // the particulars (Receipt → account Dr, Payment/Contra → account Cr), so its
+    // running balance moves by the particulars total the same way each row does.
+    const accountSide: 'Dr' | 'Cr' = form.voucherType === 'Receipt' ? 'Dr' : 'Cr';
+    const accountBalance = form.accountLedger
+      ? projectedBalanceLabel(
+          Number(form.accountBalanceRaw) || 0,
+          form.accountLedger.nature,
+          accountSide,
+          form.particularsTotal,
+        )
+      : form.accountBalance;
+
     return (
       <>
         <div className="border-b border-gray-300 shrink-0 py-1">
@@ -37,7 +51,7 @@ export default function AccountingVoucherBody({
             label="Account"
             fieldType="account"
             ledger={form.accountLedger}
-            balance={form.accountBalance}
+            balance={accountBalance}
             form={form}
           />
         </div>

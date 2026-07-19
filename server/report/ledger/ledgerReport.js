@@ -3,7 +3,31 @@ const { sql } = require('drizzle-orm');
 const { ledgers, voucherEntries, vouchers } = require('../../db/schema');
 const { getOpeningBalances } = require('../utils/ledgerBalance');
 
-const ledgerReport = async (company_id, fy_id, ledger_id, from_date, to_date) => {
+// Map a month name ("July") or number ("7"/7) to its calendar month number 1-12.
+// Returns null for anything unrecognised so callers fall back to date-range filtering.
+const MONTH_NUMBERS = {
+  january: 1,
+  february: 2,
+  march: 3,
+  april: 4,
+  may: 5,
+  june: 6,
+  july: 7,
+  august: 8,
+  september: 9,
+  october: 10,
+  november: 11,
+  december: 12,
+};
+const monthToNumber = (month) => {
+  if (month == null || month === '') return null;
+  const asNum = Number(month);
+  if (Number.isInteger(asNum) && asNum >= 1 && asNum <= 12) return asNum;
+  const key = String(month).toLowerCase().trim();
+  return MONTH_NUMBERS[key] || null;
+};
+
+const ledgerReport = async (company_id, fy_id, ledger_id, from_date, to_date, month = null) => {
   try {
     if (!ledger_id) {
       const firstLedger = await db.all(
@@ -57,8 +81,20 @@ const ledgerReport = async (company_id, fy_id, ledger_id, from_date, to_date) =>
       sql`COALESCE(v.is_optional, 0) = 0`,
       sql`COALESCE(v.is_post_dated, 0) = 0`,
     ];
-    if (from_date) conditions.push(sql`v.date >= ${from_date}`);
-    if (to_date) conditions.push(sql`v.date <= ${to_date}`);
+    // Drilling from the Ledger Monthly Summary passes a month. That summary buckets
+    // vouchers by calendar month WITHIN the financial year, ignoring the year (see
+    // ledgerMonthlySummary's monthIndex). Match rows the same way so the drill shows
+    // exactly the vouchers the clicked bucket counted — otherwise a voucher whose
+    // date-year differs from the FY's nominal year for that month (it is still filed
+    // under this fy_id) is silently excluded by an absolute date window. When no month
+    // is supplied, fall back to the explicit date range.
+    const monthNum = monthToNumber(month);
+    if (monthNum) {
+      conditions.push(sql`CAST(strftime('%m', v.date) AS INTEGER) = ${monthNum}`);
+    } else {
+      if (from_date) conditions.push(sql`v.date >= ${from_date}`);
+      if (to_date) conditions.push(sql`v.date <= ${to_date}`);
+    }
 
     const result = await db.all(
       sql`SELECT e.*, v.date, v.voucher_type, v.voucher_number, v.narration as voucher_narration

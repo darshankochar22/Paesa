@@ -79,6 +79,11 @@ export default function LedgerVouchersLayout({ fromDate, toDate }: LedgerVoucher
 
   const ledgerIdParam = searchParams.get('ledger_id');
   const ledgerId = ledgerIdParam ? Number(ledgerIdParam) : 1;
+  // Set when drilling from the Ledger Monthly Summary. That summary buckets by
+  // calendar month within the FY (year-agnostic), so we forward the month and let
+  // the backend match rows the same way instead of relying on the FY-reconstructed
+  // date window (which assumes the month's year and drops out-of-nominal-year rows).
+  const monthParam = searchParams.get('month');
 
   const [data, setData] = React.useState<LedgerResponse | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -99,6 +104,7 @@ export default function LedgerVouchersLayout({ fromDate, toDate }: LedgerVoucher
         ledgerId,
         fromDate,
         toDate,
+        monthParam || undefined,
       );
       if (res.success) {
         setData(res);
@@ -109,7 +115,7 @@ export default function LedgerVouchersLayout({ fromDate, toDate }: LedgerVoucher
     } finally {
       setLoading(false);
     }
-  }, [ledgerId, fromDate, toDate, companyId, fyId]);
+  }, [ledgerId, fromDate, toDate, monthParam, companyId, fyId]);
 
   React.useEffect(() => {
     fetchLedgerReport();
@@ -186,7 +192,12 @@ export default function LedgerVouchersLayout({ fromDate, toDate }: LedgerVoucher
   // Calculate transaction totals
   const totalDebit = data.rows.reduce((sum, r) => sum + r.debit, 0);
   const totalCredit = data.rows.reduce((sum, r) => sum + r.credit, 0);
-  const periodLabel = `Period: ${fromDate} to ${toDate}`;
+  // When drilling by month the fromDate/toDate the runner reconstructs can carry the
+  // wrong year (the bucket is year-agnostic); show the month name so the header does
+  // not contradict the voucher dates listed below it.
+  const periodLabel = monthParam
+    ? `Period: ${monthParam.charAt(0).toUpperCase()}${monthParam.slice(1)}`
+    : `Period: ${fromDate} to ${toDate}`;
 
   return (
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">

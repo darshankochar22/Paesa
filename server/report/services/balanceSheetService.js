@@ -100,11 +100,17 @@ const balanceSheet = async (company_id, fy_id) => {
     for (const g of allGroups) {
       const relevantGroupIds = new Set([g.group_id, ...descendantMap[g.group_id]]);
       let total = 0;
+      // Tally shows a group on the sheet once it OWNS a ledger (self or descendant),
+      // even when the net balance is zero (e.g. a fully-paid creditor still lists its
+      // Current Liabilities section). ledgerBalances already covers every active ledger
+      // except the P&L A/c, so membership here = "this group has real accounts under it".
+      let hasLedger = false;
       const directLedgers = [];
 
       for (const l of Object.values(ledgerBalances)) {
         if (relevantGroupIds.has(l.group_id)) {
           total += l.balance;
+          hasLedger = true;
         }
         if (l.group_id === g.group_id && l.balance !== 0) {
           directLedgers.push({
@@ -128,6 +134,7 @@ const balanceSheet = async (company_id, fy_id) => {
         group_name: g.name,
         nature: g.nature,
         balance: total,
+        hasLedger,
         ledgers: directLedgers,
         childGroups,
       };
@@ -191,15 +198,19 @@ const balanceSheet = async (company_id, fy_id) => {
       }
     }
 
+    // A primary group appears when it carries a balance OR owns any ledger — matching
+    // Tally, where the section shows as soon as accounts exist under it so postings have
+    // a visible home. Empty predefined groups with no ledgers stay hidden (Tally hides
+    // them too), and appear the moment a ledger is created under them.
     const assets = primaryGroups
       .filter((g) => g.nature === 'Assets')
       .map((g) => groupBalances[g.group_id])
-      .filter((g) => g.balance !== 0);
+      .filter((g) => g.balance !== 0 || g.hasLedger);
 
     const liabilities = primaryGroups
       .filter((g) => g.nature === 'Liabilities')
       .map((g) => groupBalances[g.group_id])
-      .filter((g) => g.balance !== 0);
+      .filter((g) => g.balance !== 0 || g.hasLedger);
 
     // Tally shows the P&L A/c on the sheet as "Opening Balance" (profit/loss
     // brought forward from prior years — the carried opening of the P&L A/c
@@ -209,25 +220,26 @@ const balanceSheet = async (company_id, fy_id) => {
     const broughtForward = plLedgerId != null ? openings[plLedgerId] || 0 : 0;
     const pnlOpeningDisplayed = -broughtForward;
     const pnlTotal = pnlOpeningDisplayed + netProfit;
-    if (Math.abs(pnlTotal) >= 0.01) {
-      const pnlEntry = {
-        group_id: -1,
-        group_name: pnlTotal >= 0 ? 'Profit & Loss A/c' : 'Profit & Loss A/c (Loss)',
-        nature: pnlTotal >= 0 ? 'Liabilities' : 'Assets',
-        balance: pnlTotal,
-        ledgers: [],
-        childGroups: [],
-        isPnL: true,
-        pnlBreakup: {
-          openingBalance: pnlOpeningDisplayed,
-          currentPeriod: netProfit,
-        },
-      };
-      if (pnlTotal >= 0) {
-        liabilities.push(pnlEntry);
-      } else {
-        assets.push(pnlEntry);
-      }
+    // Always present — the Profit & Loss A/c is a structural line Tally shows on every
+    // Balance Sheet (with its Opening Balance + Current Period breakup), even at zero.
+    // A net loss flips it to the Assets side.
+    const pnlEntry = {
+      group_id: -1,
+      group_name: pnlTotal >= 0 ? 'Profit & Loss A/c' : 'Profit & Loss A/c (Loss)',
+      nature: pnlTotal >= 0 ? 'Liabilities' : 'Assets',
+      balance: pnlTotal,
+      ledgers: [],
+      childGroups: [],
+      isPnL: true,
+      pnlBreakup: {
+        openingBalance: pnlOpeningDisplayed,
+        currentPeriod: netProfit,
+      },
+    };
+    if (pnlTotal >= 0) {
+      liabilities.push(pnlEntry);
+    } else {
+      assets.push(pnlEntry);
     }
 
     let totalAssets = assets.reduce((s, g) => s + Math.abs(g.balance), 0);

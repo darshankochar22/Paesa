@@ -432,6 +432,8 @@ export function useVoucherRows({
     setAccountLedger: acct.setAccountLedger,
     accountBalance: acct.accountBalance,
     setAccountBalance: acct.setAccountBalance,
+    accountBalanceRaw: acct.accountBalanceRaw,
+    setAccountBalanceRaw: acct.setAccountBalanceRaw,
     // ── party
     partyLedger: inv.partyLedger,
     setPartyLedger: inv.setPartyLedger,

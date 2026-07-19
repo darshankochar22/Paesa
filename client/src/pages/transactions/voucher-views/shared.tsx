@@ -19,10 +19,14 @@ export function ReadOnlyFieldRow({
   label,
   value,
   balance,
+  balanceLabel = 'Cur Bal:',
 }: {
   label: string;
   value: string;
   balance?: string | null;
+  /** Prefix for the balance line. Defaults to "Cur Bal:"; the single-entry
+   *  Account row passes "Current balance" to match TallyPrime. */
+  balanceLabel?: string;
 }) {
   return (
     <div className="border-b border-gray-300 shrink-0 py-1 px-3">
@@ -33,7 +37,7 @@ export function ReadOnlyFieldRow({
       </div>
       {balance && (
         <div className="pl-[10.5rem] text-xs italic">
-          Cur Bal:{' '}
+          {balanceLabel}{' '}
           <span
             className={
               balance.includes('Cr') ? 'text-black font-bold' : 'text-zinc-500 font-semibold'
@@ -84,9 +88,13 @@ export function ReadOnlyLedgerPartyHeader({
 export function ReadOnlyParticularsTable({
   entries,
   bills = [],
+  balances,
 }: {
   entries: VoucherEntry[];
   bills?: BillReference[];
+  /** Optional per-ledger running balance ("2,00,000.00 Cr"), shown as a "Cur Bal:"
+   *  line under each ledger — matches TallyPrime's single-entry voucher view. */
+  balances?: Record<number, string>;
 }) {
   const total = entries.reduce((s, e) => s + (e.amount || 0), 0);
   // Bill-wise allocations grouped under their ledger, shown inline (Tally-style),
@@ -110,6 +118,20 @@ export function ReadOnlyParticularsTable({
                 {formatAmount(row.amount)}
               </div>
             </div>
+            {balances?.[row.ledger_id] && (
+              <div className="pl-4 text-xs italic">
+                Cur Bal:{' '}
+                <span
+                  className={
+                    balances[row.ledger_id].includes('Cr')
+                      ? 'text-black font-bold'
+                      : 'text-zinc-500 font-semibold'
+                  }
+                >
+                  {balances[row.ledger_id]}
+                </span>
+              </div>
+            )}
             {(billsByLedger[row.ledger_id] ?? []).map((b) => (
               <div
                 key={b.bill_id}

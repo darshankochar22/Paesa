@@ -18,6 +18,9 @@ interface LedgerListPanelProps {
   /** Omit for plain option lists (states, address types) that have nothing to create. */
   onCreateNew?: () => void;
   createLabel?: string;
+  /** Party name picker only: Tally's "New Party" quick-create row. Opens a
+   *  name-only popup instead of the full Ledger Creation screen. */
+  onNewParty?: () => void;
   /** Name of the row to highlight while the search is empty — the field's current
    *  value, so Enter keeps it instead of grabbing the first row. */
   initialHighlight?: string;
@@ -46,6 +49,7 @@ export default function LedgerListPanel({
   onClose,
   onCreateNew,
   createLabel,
+  onNewParty,
   initialHighlight,
   onEndOfList,
   onEnterEmpty,
@@ -214,6 +218,15 @@ export default function LedgerListPanel({
           onClick={onCreateNew}
         >
           {createLabel}
+        </div>
+      )}
+
+      {onNewParty && (
+        <div
+          className="px-2 py-1 text-xs cursor-pointer hover:bg-gray-100 border-b border-gray-200 text-black select-none"
+          onClick={onNewParty}
+        >
+          New Party
         </div>
       )}
 

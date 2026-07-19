@@ -10,6 +10,10 @@ import type { useVoucherRows } from './useVoucherRowsNew';
 export interface VoucherSubmitCtx {
   companyId?: number;
   fyId?: number;
+  // Active financial-year bounds (ISO `YYYY-MM-DD`), used to reject a voucher
+  // whose date falls outside its own period. Independent of report period filters.
+  fyStart?: string;
+  fyEnd?: string;
   effectiveVoucherType: string;
   meta: ReturnType<typeof useVoucherMeta>;
   rows: ReturnType<typeof useVoucherRows>;
@@ -39,11 +43,27 @@ export interface VoucherSubmitCtx {
 }
 
 export function validateVoucher(ctx: VoucherSubmitCtx): string | null {
-  const { companyId, fyId, effectiveVoucherType, meta, rows, ledgers } = ctx;
+  const { companyId, fyId, fyStart, fyEnd, effectiveVoucherType, meta, rows, ledgers } = ctx;
   if (!companyId) return 'No company selected.';
   // Attendance vouchers are stored in their own table and don't use the financial
   // year, so a not-yet-loaded FY must not block saving them.
   if (!fyId && effectiveVoucherType !== 'Attendance') return 'No active financial year.';
+
+  // A voucher's date must lie inside the active financial year — Tally blocks a
+  // save whose date is outside the open period. Otherwise the entry is filed under
+  // an fy_id whose period doesn't contain its date, and date-bucketed reports
+  // (Stock Item Monthly Summary, Day Book by month) silently drop it while fy_id-only
+  // reports (Balance Sheet) still show it. This is purely the entry-period rule and
+  // is independent of the Alt+F2 report From/To Date filters.
+  if (
+    effectiveVoucherType !== 'Attendance' &&
+    fyStart &&
+    fyEnd &&
+    meta.date &&
+    (meta.date < fyStart || meta.date > fyEnd)
+  ) {
+    return `Voucher date (${meta.date}) is outside the current financial year (${fyStart} to ${fyEnd}). Change the date, or switch to the matching financial year.`;
+  }
 
   if (effectiveVoucherType === 'Receipt') {
     if (rows.receiptEntryMode === 'single') {
@@ -879,11 +899,26 @@ export async function submitVoucher(ctx: VoucherSubmitCtx & { validate: () => st
         'Job Work In Order',
         'Job Work Out Order',
       ];
+      // Persist how an accounting voucher was entered (single-entry Account +
+      // Particulars vs double-entry Dr/Cr) so its alteration view reopens in the
+      // same layout — TallyPrime shows the mode it was keyed in. Other types: null.
+      const accountingEntryMode =
+        effectiveVoucherType === 'Receipt'
+          ? rows.receiptEntryMode
+          : effectiveVoucherType === 'Payment'
+            ? rows.paymentEntryMode
+            : effectiveVoucherType === 'Contra'
+              ? rows.contraEntryMode
+              : effectiveVoucherType === 'Journal' || effectiveVoucherType === 'Reversing Journal'
+                ? rows.journalEntryMode
+                : null;
+
       const payload: any = {
         company_id: companyId!,
         fy_id: fyId!,
         voucher_type: meta.voucherType,
         date: meta.date,
+        entry_mode: accountingEntryMode,
         status: meta.status,
         supplier_invoice_no: meta.supplierInvoiceNo || null,
         supplier_invoice_date: meta.supplierInvoiceDate || null,

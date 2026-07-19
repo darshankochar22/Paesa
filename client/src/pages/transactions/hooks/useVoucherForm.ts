@@ -312,11 +312,13 @@ export function useVoucherForm(
 
   useEffect(() => {
     if (rows.accountLedger?.ledger_id) {
-      ledgers
-        .fetchLedgerBalance(rows.accountLedger.ledger_id)
-        .then((b) => rows.setAccountBalance(b.label));
+      ledgers.fetchLedgerBalance(rows.accountLedger.ledger_id).then((b) => {
+        rows.setAccountBalance(b.label);
+        rows.setAccountBalanceRaw(b.raw);
+      });
     } else {
       rows.setAccountBalance('');
+      rows.setAccountBalanceRaw('');
     }
   }, [rows.accountLedger, ledgers.fetchLedgerBalance]);
 
@@ -362,6 +364,8 @@ export function useVoucherForm(
       validateVoucher({
         companyId,
         fyId,
+        fyStart: activeFY?.start_date,
+        fyEnd: activeFY?.end_date,
         effectiveVoucherType,
         meta,
         rows,
@@ -619,6 +623,7 @@ export function useVoucherForm(
     accountLedger: rows.accountLedger,
     setAccountLedger: rows.setAccountLedger,
     accountBalance: rows.accountBalance,
+    accountBalanceRaw: rows.accountBalanceRaw,
     particulars: rows.particulars,
     setParticulars: rows.setParticulars,
     handleUpdateParticularRow: rows.handleUpdateParticularRow,

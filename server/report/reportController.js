@@ -89,8 +89,8 @@ module.exports = {
   profitLoss: async (event, { company_id, fy_id, from_date, to_date }) => {
     return await profitLoss(company_id, fy_id, from_date || null, to_date || null);
   },
-  ledgerReport: async (event, { company_id, fy_id, ledger_id, from_date, to_date }) => {
-    return await ledgerReport(company_id, fy_id, ledger_id, from_date, to_date);
+  ledgerReport: async (event, { company_id, fy_id, ledger_id, from_date, to_date, month }) => {
+    return await ledgerReport(company_id, fy_id, ledger_id, from_date, to_date, month);
   },
   cashBook: async (event, { company_id, fy_id, from_date, to_date }) => {
     return await cashBook(company_id, fy_id, from_date, to_date);

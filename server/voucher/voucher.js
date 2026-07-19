@@ -463,6 +463,12 @@ const init = async (db) => {
     await db.execute(`ALTER TABLE vouchers ADD COLUMN voucher_class TEXT`);
   } catch (err) {}
 
+  // Accounting voucher entry layout ('single' | 'double') so the alteration view
+  // reopens in the mode the voucher was keyed in. ALTER for pre-existing DBs.
+  try {
+    await db.execute(`ALTER TABLE vouchers ADD COLUMN entry_mode TEXT`);
+  } catch (err) {}
+
   // Sales/Purchase ledger on non-accounting inventory vouchers (e.g. Receipt Note's
   // "Purchase ledger") — stored on the voucher row, NOT posted as an accounting entry,
   // so ledger balances are unaffected.

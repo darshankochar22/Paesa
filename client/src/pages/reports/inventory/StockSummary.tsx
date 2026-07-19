@@ -658,6 +658,13 @@ export default function StockSummary({ opening = false }: { opening?: boolean })
                   <div className="text-center py-8 text-black">{error}</div>
                 ) : monthlyData ? (
                   <>
+                    {/* Report heading — item · company · period, centred above the
+                        columns (matches TallyPrime's per-report title block). */}
+                    <div className="text-center py-1.5 border-b border-gray-200 bg-white">
+                      <div className="font-bold text-[12px]">{monthlyData.item_name}</div>
+                      <div className="text-[11px] font-bold">{companyName}</div>
+                      <div className="text-[10px] italic">For {fyLabel}</div>
+                    </div>
                     {/* Monthly table */}
                     <table className="w-full border-collapse">
                       <thead className="sticky top-0 bg-white text-black z-10 border-b border-gray-200 text-[10px]">
