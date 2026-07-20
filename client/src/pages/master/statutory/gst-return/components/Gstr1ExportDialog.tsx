@@ -9,7 +9,7 @@ type Format = 'json' | 'excel' | 'csv';
 
 const FORMATS: { id: Format; label: string; hint: string }[] = [
   { id: 'json', label: 'Portal JSON', hint: 'Upload to the GST portal / offline tool' },
-  { id: 'excel', label: 'Excel workbook', hint: 'One .xls, a sheet per section' },
+  { id: 'excel', label: 'Excel workbook', hint: 'Portal-format .xlsx, one sheet per section' },
   { id: 'csv', label: 'Section CSVs', hint: 'Offline-tool importable, one file per section' },
 ];
 
@@ -98,7 +98,7 @@ export default function Gstr1ExportDialog({
 
       let csvFiles = 0;
       if (picked.json) downloadPortalJson(payload);
-      if (picked.excel) downloadWorkbook(payload);
+      if (picked.excel) downloadWorkbook(payload, { legalName: selectedCompany?.name || '' });
       if (picked.csv) csvFiles = downloadSectionCsvs(payload);
 
       const parts = [

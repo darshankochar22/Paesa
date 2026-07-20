@@ -172,7 +172,6 @@ export default function BillScanView() {
             <button
               onClick={() => fileInputRef.current?.click()}
               className="flex flex-col items-center gap-2 text-zinc-500 hover:text-zinc-800 p-8"
-              disabled={!configured}
             >
               <svg
                 width="40"

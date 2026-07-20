@@ -12,6 +12,8 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { buildXlsxBlob, colLetter, STYLE, type XlsxCell, type XlsxSheet } from './xlsxWriter';
+
 // GST state code → name, for the "Place Of Supply" column (offline tool wants "24-Gujarat").
 const GST_STATE_NAMES: Record<string, string> = {
   '01': 'Jammu & Kashmir',
@@ -574,8 +576,438 @@ export function downloadPortalJson(payload: any) {
   );
 }
 
-export function downloadWorkbook(payload: any) {
-  download(`${base(payload)}.xls`, buildWorkbookXml(payload), 'application/vnd.ms-excel');
+// ---------------------------------------------------------------------------
+// GST-portal "E-invoice details auto-populated for Form GSTR-1" .xlsx layout.
+// Reproduces the exact 7-sheet workbook the portal hands out (Read me + b2b,sez,de
+// + cdnr + cdnur + exp + hsn(b2b) + hsn(b2c)) so the export opens identically.
+// ---------------------------------------------------------------------------
+
+// Plain text / number cells. Numbers carry the NUM style (right-aligned, 0.00 format) so the
+// sheet shows "81719.00" like the portal file while staying summable in Excel.
+const XS = (v: any): XlsxCell => ({ v: v == null ? '' : String(v), t: 's' });
+const XN = (v: any): XlsxCell => ({ v: r2(v), t: 'n', s: STYLE.NUM });
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// Server emits dates as DD-MM-YYYY; the portal sheet shows DD-MMM-YYYY (01-May-2026).
+function fmtDate(d: any): string {
+  const s = String(d ?? '').trim();
+  const m = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})$/);
+  if (!m) return s;
+  const day = m[1].padStart(2, '0');
+  const mon = MONTHS[Number(m[2]) - 1] || m[2];
+  return `${day}-${mon}-${m[3]}`;
+}
+
+// Place of Supply on the portal sheet is spaced: "22 - Chhattisgarh".
+function posSpaced(pos: any): string {
+  const code = String(pos ?? '').padStart(2, '0');
+  const name = GST_STATE_NAMES[code];
+  return name ? `${code} - ${name}` : String(pos ?? '');
+}
+
+// fp is "MMYYYY" (e.g. 052026). GST FY runs Apr→Mar, so month ≥ 4 keeps the year.
+function fyFromFp(fp: any): string {
+  const s = String(fp ?? '');
+  if (!/^\d{6}$/.test(s)) return '';
+  const mm = Number(s.slice(0, 2));
+  const yyyy = Number(s.slice(2));
+  const start = mm >= 4 ? yyyy : yyyy - 1;
+  return `${start}-${String((start + 1) % 100).padStart(2, '0')}`;
+}
+
+// Portal invoice/note "type" labels (differ from the offline-tool short codes).
+const EINV_TYPE_LABEL: Record<string, string> = {
+  R: 'Regular B2B',
+  SEWP: 'SEZ supplies with payment',
+  SEWOP: 'SEZ supplies without payment',
+  DE: 'Deemed Exp',
+  CBW: 'Intra-State Supplies attracting IGST',
+};
+const einvTypeLabel = (t: any) => EINV_TYPE_LABEL[String(t || 'R')] || 'Regular B2B';
+const noteTypeLabel = (t: any) => (String(t).toUpperCase() === 'D' ? 'Debit Note' : 'Credit Note');
+
+const EINV_TITLE = 'E-invoice details auto-populated for Form GSTR-1';
+
+// Common trailing columns present on every transaction sheet (we don't source IRN /
+// auto-population data, so they stay blank — matching a books-computed return).
+const IRN_TAIL = ['IRN', 'IRN date', 'E-invoice status'];
+const AUTOPOP_TAIL = [
+  'GSTR-1 auto-population/ deletion upon cancellation date',
+  'GSTR-1 auto-population/ deletion status',
+  'Error in auto-population/ deletion',
+];
+
+// Wrap a section's data rows with the portal's 4-row banner (title, blank, section, header),
+// styled to match the reference: navy title (merged A1:<lastcol>2), cream section (merged
+// A3:<lastcol>3), navy wrapped column headers, and a 20-wide first column.
+function einvSheet(name: string, section: string, header: string[], rows: XlsxCell[][]): XlsxSheet {
+  const lastCol = colLetter(header.length - 1);
+  const titleCell: XlsxCell = { v: EINV_TITLE, t: 's', s: STYLE.TITLE };
+  const sectionCell: XlsxCell = { v: section, t: 's', s: STYLE.SECTION };
+  const headerRow: XlsxCell[] = header.map((h) => ({ v: h, t: 's', s: STYLE.HEADER }));
+  const banner: XlsxCell[][] = [
+    [titleCell],
+    [{ v: '', t: 's', s: STYLE.TITLE }],
+    [sectionCell],
+    headerRow,
+  ];
+  return {
+    name,
+    rows: [...banner, ...rows],
+    merges: [`A1:${lastCol}2`, `A3:${lastCol}3`],
+    cols: [{ min: 1, max: 1, width: 20 }],
+  };
+}
+
+export interface EinvMeta {
+  legalName?: string;
+  tradeName?: string;
+  dateTill?: string;
+}
+
+// Build the 7-sheet portal-format workbook from the server's GSTR-1 payload.
+export function buildEinvSheets(payload: any, meta: EinvMeta = {}): XlsxSheet[] {
+  const p = payload || {};
+
+  // --- Read me (styled + merged to mirror the portal template) ---
+  const cTitle: XlsxCell = { v: EINV_TITLE, t: 's', s: STYLE.TITLE };
+  const label = (v: string): XlsxCell => ({ v, t: 's', s: STYLE.META_LABEL });
+  const value = (v: string): XlsxCell => ({ v, t: 's', s: STYLE.META_VALUE });
+  const hd = (v: string): XlsxCell => ({ v, t: 's', s: STYLE.HEADER });
+  const heading = (v: string): XlsxCell => ({ v, t: 's', s: STYLE.SECTION });
+
+  const instr: [string, string, string][] = [
+    [
+      'B2B, SEZ, DE',
+      'Taxable supplies made to registered taxpayers (invoices only) - B2B, SEZ, DE Invoices',
+      'One row per recipient invoice and tax rate. Amounts in rupees; dates as DD-MMM-YYYY.',
+    ],
+    [
+      'CDNR',
+      'Credit/ Debit notes issued to the registered taxpayers - CDNR',
+      'Note Type is Debit Note or Credit Note.',
+    ],
+    [
+      'CDNUR',
+      'Credit/ Debit notes issued to the unregistered persons - CDNUR',
+      'UR Type is B2CL, EXPWP or EXPWOP.',
+    ],
+    ['EXP', 'Export supplies (Invoices only) - EXP', 'Export Type WPAY/WOPAY.'],
+    [
+      'HSN(B2B)',
+      'HSN - wise summary of outward supplies (B2B Supplies)',
+      'HSN-wise totals of taxable value and tax.',
+    ],
+    [
+      'HSN(B2C)',
+      'HSN - wise summary of outward supplies (B2C Supplies)',
+      'HSN-wise totals of taxable value and tax.',
+    ],
+  ];
+
+  const readme: XlsxCell[][] = [
+    [cTitle],
+    [{ v: '', t: 's', s: STYLE.TITLE }],
+    [{ v: '', t: 's', s: STYLE.TITLE }],
+    [label('Financial Year'), label(''), value(fyFromFp(p.fp))],
+    [label('Tax Period'), label(''), value(String(p.fp ?? ''))],
+    [label('GSTIN'), label(''), value(String(p.gstin ?? ''))],
+    [label('Legal Name'), label(''), value(meta.legalName || '')],
+    [label('Trade Name (if any)'), label(''), value(meta.tradeName || meta.legalName || '')],
+    [label('Date Updated till'), label(''), value(meta.dateTill || '')],
+    [XS('')],
+    [heading('GSTR-1 Data Entry Instructions')],
+    [hd('Worksheet Name'), hd('GSTR-1 Table Reference'), hd('Field Name'), hd('Instructions')],
+    ...instr.map(([ws, ref, note]) => [XS(ws), XS(ref), XS(''), XS(note)]),
+  ];
+
+  // Read-me merges: title band, each label(A:B)/value(C:F) pair, the instructions heading,
+  // the header's Instructions column, and each instruction row's Instructions column (D:F).
+  const readmeMerges = ['A1:F3', 'A11:F11', 'D12:F12'];
+  for (let r = 4; r <= 9; r++) readmeMerges.push(`A${r}:B${r}`, `C${r}:F${r}`);
+  for (let i = 0; i < instr.length; i++) readmeMerges.push(`D${13 + i}:F${13 + i}`);
+
+  // --- b2b, sez, de ---
+  const b2bRows: XlsxCell[][] = [];
+  (p.b2b || []).forEach((party: any) =>
+    (party.inv || []).forEach((inv: any) =>
+      (inv.itms || []).forEach((it: any) => {
+        const d = it.itm_det || {};
+        b2bRows.push([
+          XS(party.ctin),
+          XS(''), // Receiver Name (not stored)
+          XS(inv.inum),
+          XS(fmtDate(inv.idt)),
+          XN(inv.val),
+          XS(posSpaced(inv.pos)),
+          XS(inv.rchrg || 'N'),
+          XS(''), // Applicable % of Tax Rate
+          XS(einvTypeLabel(inv.inv_typ)),
+          XS(''), // E-Commerce GSTIN
+          XN(d.rt),
+          XN(d.txval),
+          XN(d.iamt),
+          XN(d.camt),
+          XN(d.samt),
+          XN(d.csamt),
+          XS(''),
+          XS(''),
+          XS(''), // IRN tail
+          XS(''),
+          XS(''),
+          XS(''), // auto-pop tail
+        ]);
+      }),
+    ),
+  );
+
+  // --- cdnr ---
+  const cdnrRows: XlsxCell[][] = [];
+  (p.cdnr || []).forEach((party: any) =>
+    (party.nt || []).forEach((nt: any) =>
+      (nt.itms || []).forEach((it: any) => {
+        const d = it.itm_det || {};
+        cdnrRows.push([
+          XS(party.ctin),
+          XS(''), // Receiver Name
+          XS(nt.nt_num),
+          XS(fmtDate(nt.nt_dt)),
+          XS(noteTypeLabel(nt.ntty)),
+          XS(posSpaced(nt.pos)),
+          XS(nt.rchrg || 'N'),
+          XS(einvTypeLabel(nt.inv_typ)),
+          XN(nt.val),
+          XS(''), // Applicable % of Tax Rate
+          XN(d.rt),
+          XN(d.txval),
+          XN(d.iamt),
+          XN(d.camt),
+          XN(d.samt),
+          XN(d.csamt),
+          XS(''),
+          XS(''),
+          XS(''),
+          XS(''),
+          XS(''),
+          XS(''),
+        ]);
+      }),
+    ),
+  );
+
+  // --- cdnur ---
+  const cdnurRows: XlsxCell[][] = [];
+  (p.cdnur || []).forEach((nt: any) =>
+    (nt.itms || []).forEach((it: any) => {
+      const d = it.itm_det || {};
+      cdnurRows.push([
+        XS(nt.typ),
+        XS(nt.nt_num),
+        XS(fmtDate(nt.nt_dt)),
+        XS(noteTypeLabel(nt.ntty)),
+        XS(posSpaced(nt.pos)),
+        XN(nt.val),
+        XS(''), // Applicable % of Tax Rate
+        XN(d.rt),
+        XN(d.txval),
+        XN(d.iamt),
+        XN(d.csamt),
+        XS(''),
+        XS(''),
+        XS(''),
+        XS(''),
+        XS(''),
+        XS(''),
+      ]);
+    }),
+  );
+
+  // --- exp ---
+  const expRows: XlsxCell[][] = [];
+  (p.exp || []).forEach((g: any) =>
+    (g.inv || []).forEach((inv: any) =>
+      (inv.itms || []).forEach((it: any) => {
+        expRows.push([
+          XS(g.exp_typ),
+          XS(inv.inum),
+          XS(fmtDate(inv.idt)),
+          XN(inv.val),
+          XS(''), // Port Code
+          XS(''), // Shipping Bill Number
+          XS(''), // Shipping Bill Date
+          XN(it.rt),
+          XN(it.txval),
+          XN(it.iamt),
+          XN(it.csamt),
+          XS(''),
+          XS(''),
+          XS(''),
+          XS(''),
+          XS(''),
+          XS(''),
+        ]);
+      }),
+    ),
+  );
+
+  // --- hsn: portal splits B2B/B2C; the books summary isn't split, so all rows land
+  // under hsn(b2b) and hsn(b2c) stays header-only (as in the reference file). ---
+  const hsnRows: XlsxCell[][] = (p.hsn?.data || []).map((x: any) => [
+    XS(x.hsn_sc),
+    XS(x.desc),
+    XS(String(x.uqc || 'OTH').toUpperCase()),
+    XN(x.qty),
+    XN(x.txval),
+    XN(x.rt),
+    XN(x.iamt),
+    XN(x.camt),
+    XN(x.samt),
+    XN(x.csamt),
+  ]);
+
+  const B2B_HEADER = [
+    'GSTIN/UIN of Recipient',
+    'Receiver Name',
+    'Invoice number',
+    'Invoice date',
+    'Invoice value',
+    'Place of Supply',
+    'Reverse Charge',
+    'Applicable % of Tax Rate',
+    'Invoice Type',
+    'E-Commerce GSTIN',
+    'Rate',
+    'Taxable Value',
+    'Integrated Tax',
+    'Central Tax',
+    'State/UT Tax',
+    'Cess Amount',
+    ...IRN_TAIL,
+    ...AUTOPOP_TAIL,
+  ];
+  const CDNR_HEADER = [
+    'GSTIN/UIN of Recipient',
+    'Receiver Name',
+    'Note Number',
+    'Note Date',
+    'Note Type',
+    'Place of Supply',
+    'Reverse Charge',
+    'Note Supply Type',
+    'Note value',
+    'Applicable % of Tax Rate',
+    'Rate',
+    'Taxable Value',
+    'Integrated Tax',
+    'Central Tax',
+    'State/UT Tax',
+    'Cess Amount',
+    ...IRN_TAIL,
+    ...AUTOPOP_TAIL,
+  ];
+  const CDNUR_HEADER = [
+    'UR Type',
+    'Note Number',
+    'Note Date',
+    'Note Type',
+    'Place of Supply',
+    'Note value',
+    'Applicable % of Tax Rate',
+    'Rate',
+    'Taxable Value',
+    'Integrated Tax',
+    'Cess Amount',
+    ...IRN_TAIL,
+    ...AUTOPOP_TAIL,
+  ];
+  const EXP_HEADER = [
+    'Export Type',
+    'Invoice Number',
+    'Invoice Date',
+    'Invoice value',
+    'Port Code',
+    'Shipping Bill Number',
+    'Shipping Bill Date',
+    'Rate',
+    'Taxable Value',
+    'Integrated Tax',
+    'Cess Amount',
+    ...IRN_TAIL,
+    ...AUTOPOP_TAIL,
+  ];
+  const HSN_HEADER = [
+    'HSN',
+    'Description',
+    'UQC',
+    'Total Quantity',
+    'Total taxable value',
+    'Rate (%)',
+    'Integrated tax',
+    'Central tax',
+    'State/UT tax',
+    'Cess',
+  ];
+
+  return [
+    {
+      name: 'Read me',
+      rows: readme,
+      merges: readmeMerges,
+      cols: [
+        { min: 1, max: 1, width: 13 },
+        { min: 2, max: 2, width: 28 },
+        { min: 3, max: 3, width: 29 },
+        { min: 4, max: 4, width: 31 },
+        { min: 5, max: 5, width: 27 },
+        { min: 6, max: 6, width: 28 },
+      ],
+    },
+    einvSheet(
+      'b2b, sez, de',
+      'Taxable supplies made to registered taxpayers (invoices only) - B2B, SEZ, DE Invoices',
+      B2B_HEADER,
+      b2bRows,
+    ),
+    einvSheet(
+      'cdnr',
+      'Credit/ Debit notes issued to the registered taxpayers - CDNR',
+      CDNR_HEADER,
+      cdnrRows,
+    ),
+    einvSheet(
+      'cdnur',
+      'Credit/ Debit notes issued to the unregistered persons - CDNUR',
+      CDNUR_HEADER,
+      cdnurRows,
+    ),
+    einvSheet('exp', 'Export supplies (Invoices only) - EXP', EXP_HEADER, expRows),
+    einvSheet(
+      'hsn(b2b)',
+      'HSN - wise summary of outward supplies (B2B Supplies)',
+      HSN_HEADER,
+      hsnRows,
+    ),
+    einvSheet('hsn(b2c)', 'HSN - wise summary of outward supplies (B2C Supplies)', HSN_HEADER, []),
+  ];
+}
+
+// Portal-format filename: EINV_<GSTIN>_<FY>.xlsx (matches the download name the portal uses).
+export function einvFilename(payload: any): string {
+  const fy = fyFromFp(payload?.fp) || payload?.fp || '';
+  return `EINV_${payload?.gstin || 'Export'}_${fy}.xlsx`;
+}
+
+export function downloadWorkbook(payload: any, meta: EinvMeta = {}) {
+  const blob = buildXlsxBlob(buildEinvSheets(payload, meta));
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = einvFilename(payload);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 // Each non-empty section as its own offline-tool CSV. Returns the count downloaded.

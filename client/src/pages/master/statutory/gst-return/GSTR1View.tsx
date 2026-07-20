@@ -248,7 +248,7 @@ export default function GSTR1View() {
 
   // Single multi-sheet Excel workbook (one sheet per section, offline-tool column layout).
   const handleExportExcel = () => {
-    if (gstr1Data) downloadWorkbook(gstr1Data);
+    if (gstr1Data) downloadWorkbook(gstr1Data, { legalName: selectedCompany?.name || '' });
   };
 
   // Offline-tool section CSVs (b2b.csv, cdnr.csv, hsn.csv, …) — importable into the Java tool.
