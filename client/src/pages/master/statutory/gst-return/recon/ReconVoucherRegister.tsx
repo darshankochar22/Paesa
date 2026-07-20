@@ -41,7 +41,9 @@ interface VchSide {
 }
 interface Pair {
   book: VchSide | null;
-  portal: (VchSide & { gstin?: string }) | null;
+  // GSTR-2B additionally states whether the ITC on a document may be claimed
+  // (`itc_available` 'N' = not available) and the portal's reason code.
+  portal: (VchSide & { gstin?: string; itc_available?: string; itc_reason?: string }) | null;
 }
 interface Groups {
   mismatch: Pair[];
@@ -74,6 +76,8 @@ export default function ReconVoucherRegister() {
   const gstin: string = location.state?.gstin || '';
   const partyName: string = location.state?.partyName || '';
   const registration = location.state?.registration || null;
+  // MMYYYY carried down from the recon screen's period selector; null = whole FY.
+  const returnPeriod: string | null = location.state?.returnPeriod ?? null;
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -92,6 +96,7 @@ export default function ReconVoucherRegister() {
         section,
         gstin,
         gst_registration_id: registration?.gst_id ?? null,
+        return_period: returnPeriod,
       });
       if (res.success) {
         setGroups(res.payload.groups);
@@ -102,7 +107,7 @@ export default function ReconVoucherRegister() {
     } finally {
       setLoading(false);
     }
-  }, [companyId, fyId, kind, section, gstin, registration]);
+  }, [companyId, fyId, kind, section, gstin, registration, returnPeriod]);
 
   useEffect(() => {
     load();
@@ -135,7 +140,16 @@ export default function ReconVoucherRegister() {
       rows.push(
         <TableRow key={`${group}-${i}-p`} className={cn('border-0', ROW_HOVER, PORTAL_ROW)}>
           <TableCell className="px-2 py-0.5">{p.book ? '' : p.portal.doc_date}</TableCell>
-          <TableCell className="px-2 py-0.5">{p.book ? portalTag(kind) : partyName}</TableCell>
+          <TableCell className="px-2 py-0.5">
+            {p.book ? portalTag(kind) : partyName}
+            {/* ITC ineligibility is the single most consequential thing GSTR-2B says
+                about a document — flag it by weight, not colour, per the B/W theme. */}
+            {p.portal.itc_available === 'N' && (
+              <span className="ml-2 font-bold not-italic">
+                ITC not available{p.portal.itc_reason ? ` (${p.portal.itc_reason})` : ''}
+              </span>
+            )}
+          </TableCell>
           <TableCell className="px-2 py-0.5" />
           <TableCell className="px-2 py-0.5" />
           <TableCell className="px-2 py-0.5">{p.portal.doc_no}</TableCell>
@@ -177,7 +191,7 @@ export default function ReconVoucherRegister() {
         {
           label: sectionLabel,
           to: `/master/statutory/gstr${kind.toLowerCase()}/reconciliation/party`,
-          state: { kind, section, sectionLabel, registration },
+          state: { kind, section, sectionLabel, registration, returnPeriod },
         },
         { label: partyName || gstin },
       ]}

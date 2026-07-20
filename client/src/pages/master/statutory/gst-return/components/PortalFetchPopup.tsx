@@ -14,6 +14,10 @@ interface PortalFetchPopupProps {
   onClose: () => void;
   /** Called after a successful import so the parent reloads the reconciliation. */
   onImported: () => void;
+  /** MMYYYY currently on screen — seeds the picker. Null falls back to the FY. */
+  defaultPeriod?: string | null;
+  /** Every MMYYYY of the open financial year, in order. */
+  fyPeriods?: string[];
 }
 
 const MONTHS = [
@@ -43,10 +47,15 @@ export default function PortalFetchPopup({
   fyId,
   onClose,
   onImported,
+  defaultPeriod = null,
+  fyPeriods = [],
 }: PortalFetchPopupProps) {
-  const now = new Date();
-  const [month, setMonth] = useState(String(now.getMonth() + 1).padStart(2, '0'));
-  const [year, setYear] = useState(String(now.getFullYear()));
+  // Seed from the period on screen, else the first month of the open FY. Today's
+  // calendar month is NOT a safe default — for a prior-year company it sits outside
+  // the FY entirely and fetches a period the books can never show.
+  const seed = defaultPeriod || fyPeriods[0] || '';
+  const [month, setMonth] = useState(seed ? seed.slice(0, 2) : '04');
+  const [year, setYear] = useState(seed ? seed.slice(2) : String(new Date().getFullYear()));
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -56,7 +65,12 @@ export default function PortalFetchPopup({
     if (!open) return;
     setMsg(null);
     setErr(null);
-  }, [open]);
+    // The popup stays mounted between opens, so re-seed from the period now on screen.
+    if (seed) {
+      setMonth(seed.slice(0, 2));
+      setYear(seed.slice(2));
+    }
+  }, [open, seed]);
 
   // Escape via the central stack; while the login dialog is stacked above,
   // this popup steps off the stack so the dialog pops first.
@@ -69,6 +83,12 @@ export default function PortalFetchPopup({
   const fetchNow = async () => {
     if (!/^\d{4}$/.test(year)) {
       setErr('Enter the year as YYYY.');
+      return;
+    }
+    // Fetching a period outside the open FY imports rows the reconciliation can never
+    // show (it only ever reads this FY) — catch it here rather than after the download.
+    if (fyPeriods.length && !fyPeriods.includes(period)) {
+      setErr(`${period} is outside the open financial year. Pick a month within it.`);
       return;
     }
     setBusy(true);

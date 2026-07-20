@@ -24,6 +24,7 @@ const parser = require('./xmlParser');
 const importer = require('./importer');
 const { extractCompany } = require('./binExtract');
 const { adapt, importParsed } = require('./binImportRunner');
+const { repairImportedGst } = require('./gstBackfill');
 
 // A TallyPrime data folder must contain these native files.
 const REQUIRED_BIN_FILES = ['Manager.1800', 'TranMgr.1800'];
@@ -259,6 +260,13 @@ module.exports = {
 
   // Full import of a TallyPrime folder into a NEW (or matched) company.
   //   importTallyFolder({ folder, company_name, fy_start, preserve_numbers })
+  // Repairs the GST fields a pre-existing Tally import left empty (UQC, GST tax-ledger
+  // tagging, per-line gst_rate). New imports fill these inline; this is for companies
+  // imported before that. `dry_run` reports what would change without writing.
+  repairImportedGst: async (_event, { company_id, fy_id, dry_run = false } = {}) => {
+    return await repairImportedGst(company_id, fy_id, { dryRun: dry_run });
+  },
+
   importTallyFolder: async (
     event,
     { folder, company_name, fy_start, preserve_numbers = true } = {},

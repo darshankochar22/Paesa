@@ -137,6 +137,22 @@ const normalizeInvNo = (s) =>
 const invMatchKey = (gstin, invNo) =>
   `${String(gstin || '').toUpperCase()}-${normalizeInvNo(invNo)}`;
 
+// Books often hold only the NUMERIC TAIL of a supplier's bill number while the portal
+// carries the supplier's full format — books "266" vs portal "NN/25-26/266", books
+// "882" vs portal "SN/882". Same document, and the exact key can never join them.
+// This secondary key is the trailing digit run, leading zeros stripped. It is only ever
+// used when the exact key misses AND the key is unique on BOTH sides, so an ambiguous
+// tail (two documents ending 266) pairs nothing rather than guessing.
+const trailingDigits = (docNo) => {
+  const m = /(\d+)\s*$/.exec(String(docNo || ''));
+  if (!m) return null;
+  return m[1].replace(/^0+(?=.)/, '');
+};
+const invTailKey = (gstin, docNo) => {
+  const tail = trailingDigits(docNo);
+  return tail ? `${String(gstin || '').toUpperCase()}~${tail}` : null;
+};
+
 // Tax/taxable amounts within this many rupees count as an exact match (vendor-side fraction
 // rounding). Anything larger is a Mismatch — never silently reconciled.
 const RECON_TOLERANCE = 10;
@@ -168,7 +184,10 @@ const portalInvoiceTotals = (inv) => {
     cgst,
     sgst,
     cess,
-    tax: igst + cgst + sgst,
+    // Cess IS part of the tax total. The books side (reconDetail.addBook) has always
+    // included it, so excluding it here made every cess-bearing invoice show a
+    // books-vs-portal gap in the tax column even when perfectly reconciled.
+    tax: igst + cgst + sgst + cess,
     val: Number(inv.val) || 0,
     hasItms: itms.length > 0,
   };
@@ -421,7 +440,9 @@ const getIMSInwardSupplies = async (company_id, fy_id) => {
       for (const row of importedRows) {
         try {
           const payload = JSON.parse(row.payload_json);
-          for (const p of payload.b2b || []) {
+          // b2b AND cdn: notes now live in their own bucket, and a supplier-filed note
+          // is just as much evidence of filing as an invoice.
+          for (const p of [...(payload.b2b || []), ...(payload.cdn || [])]) {
             for (const inv of p.inv || []) {
               // Same normalized key as the reconciliation matcher, so "INV-001" in books
               // and "INV001" on the portal agree here exactly as they do there.
@@ -562,5 +583,13 @@ module.exports = {
   getIMSInwardSupplies,
   getChallanReconciliation,
   // Shared matching primitives — reused by reconDetail.js for the party/voucher drill.
-  _recon: { invMatchKey, normalizeInvNo, portalInvoiceTotals, withinTolerance, RECON_TOLERANCE },
+  _recon: {
+    invMatchKey,
+    normalizeInvNo,
+    invTailKey,
+    trailingDigits,
+    portalInvoiceTotals,
+    withinTolerance,
+    RECON_TOLERANCE,
+  },
 };

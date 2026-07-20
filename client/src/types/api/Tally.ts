@@ -137,5 +137,27 @@ export interface TallyAPI {
       preserve_numbers?: boolean;
     }) => Promise<TallyFolderImportResult>;
     onImportProgress: (cb: (info: TallyFolderImportProgress) => void) => () => void;
+    /**
+     * Repairs the GST fields a Tally import leaves empty (unit UQC, GST tax-ledger
+     * tagging, per-line gst_rate). New imports fill these inline — this is for companies
+     * imported earlier. `dry_run` reports what would change without writing.
+     */
+    repairImportedGst: (params: {
+      company_id: number;
+      fy_id: number;
+      dry_run?: boolean;
+    }) => Promise<{
+      success: boolean;
+      dryRun?: boolean;
+      uqc?: { mapped: number; unmapped: string[] };
+      ledgers?: { tagged: number };
+      rates?: {
+        vouchers: number;
+        voucherRate: number;
+        perLineMasterRate: number;
+        needsReview: number;
+      };
+      error?: string;
+    }>;
   };
 }

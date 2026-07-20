@@ -172,17 +172,21 @@ module.exports = {
 
   // Tally-style dual books-vs-portal recon drill (kind = '2A' | '2B').
   // gst_registration_id scopes the books side to the registration shown in the header.
-  getReconSummary: async (event, { company_id, fy_id, kind, gst_registration_id }) => {
+  getReconSummary: async (
+    event,
+    { company_id, fy_id, kind, gst_registration_id, return_period },
+  ) => {
     return await reconciliationService.getReconSummary(
       company_id,
       fy_id,
       kind,
       gst_registration_id ?? null,
+      return_period ?? null,
     );
   },
   getReconPartySummary: async (
     event,
-    { company_id, fy_id, kind, section, gst_registration_id },
+    { company_id, fy_id, kind, section, gst_registration_id, return_period },
   ) => {
     return await reconciliationService.getReconPartySummary(
       company_id,
@@ -190,11 +194,12 @@ module.exports = {
       kind,
       section,
       gst_registration_id ?? null,
+      return_period ?? null,
     );
   },
   getReconVoucherRegister: async (
     event,
-    { company_id, fy_id, kind, section, gstin, gst_registration_id },
+    { company_id, fy_id, kind, section, gstin, gst_registration_id, return_period },
   ) => {
     return await reconciliationService.getReconVoucherRegister(
       company_id,
@@ -203,6 +208,7 @@ module.exports = {
       section,
       gstin,
       gst_registration_id ?? null,
+      return_period ?? null,
     );
   },
 

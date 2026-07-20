@@ -63,6 +63,11 @@ const SUMMARY = {
       uncertain: 0,
     },
     period_label: '2026-04-01 to 2027-03-31',
+    return_period: null,
+    periods: [
+      { ym: '2026-04', period: '042026', label: 'Apr-26', fetched: true },
+      { ym: '2026-05', period: '052026', label: 'May-26', fetched: false },
+    ],
     has_portal: true,
     last_gst_activity: 'GSTR-2A imported',
   },
@@ -102,7 +107,20 @@ describe('ReconReturnView (dual books-vs-portal)', () => {
         fy_id: 1,
         kind: '2A',
         gst_registration_id: 1,
+        // Whole financial year until a month is picked in the right-hand period panel.
+        return_period: null,
       }),
+    );
+  });
+
+  it('period panel: picking a month re-queries that return period', async () => {
+    wrap();
+    await waitFor(() => expect(screen.getByText('May-26')).toBeInTheDocument());
+    await userEvent.click(screen.getByText('May-26'));
+    await waitFor(() =>
+      expect(window.api.gst.getReconSummary).toHaveBeenLastCalledWith(
+        expect.objectContaining({ return_period: '052026' }),
+      ),
     );
   });
 

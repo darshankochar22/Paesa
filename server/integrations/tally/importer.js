@@ -27,6 +27,7 @@ const stockItemService = require('../../stockItem/stockItemService');
 const stockGroupService = require('../../stockGroup/stockGroupService');
 const unitService = require('../../unit/unitService');
 const voucherService = require('../../voucher/voucherService');
+const { uqcFor, gstTaxTypeFor, deriveVoucherRate, tagGstLedgers } = require('./gstBackfill');
 
 // ----- small helpers --------------------------------------------------------
 
@@ -270,6 +271,10 @@ const ensureUnit = async (unitNameOrSymbol, ctx, resolver, summary) => {
     company_id: ctx.company_id,
     name: unitNameOrSymbol,
     symbol: unitNameOrSymbol,
+    // Tally's export carries no UQC. Without one every GST-applicable line raises
+    // "UOM is not mapped to the Unit Quantity Code" — map the standard symbols here
+    // and leave anything unrecognised blank for Map UOM-UQC (a wrong UQC is rejected).
+    unit_quantity_code: uqcFor(unitNameOrSymbol),
   });
 
   if (res.success) {
@@ -519,8 +524,36 @@ const entriesBalanced = (entries) => {
   return Math.abs(total) < 0.01;
 };
 
+// Stamp gst_rate onto a voucher's stock lines, mirroring gstBackfill's repair pass:
+// derive the rate from the GST actually booked on the voucher, fall back to the item
+// master only for a mixed-slab invoice the master reproduces, else leave 0 so the
+// voucher shows up in Uncertain rather than carrying a fabricated rate.
+// `masterRateById` is item_id → the master's gst_rate.
+const applyGstRates = (stockEntries, rawEntries, masterRateById) => {
+  if (!stockEntries.length) return;
+  const amountOf = (l) => (Number(l.quantity) || 0) * (Number(l.rate) || 0);
+  const taxable = stockEntries.reduce((sum, l) => sum + amountOf(l), 0);
+  const bookedTax = (rawEntries || []).reduce(
+    (sum, e) => (gstTaxTypeFor(e.ledgerName) ? sum + Math.abs(Number(e.amount) || 0) : sum),
+    0,
+  );
+  const masterRate = (l) => Number(masterRateById.get(l.stock_item_id)) || 0;
+  const masterTax = stockEntries.reduce((sum, l) => sum + (amountOf(l) * masterRate(l)) / 100, 0);
+
+  const d = deriveVoucherRate({ taxable, bookedTax, masterTax });
+  if (d.mode === 'voucher') for (const l of stockEntries) l.gst_rate = d.rate;
+  else if (d.mode === 'master') for (const l of stockEntries) l.gst_rate = masterRate(l);
+};
+
 const importVouchersPhase = async (parsedVouchers, ctx, resolver) => {
   const summary = { created: 0, skipped: 0, failed: 0, errors: [] };
+
+  // Master GST rates, read once — the per-line fallback for mixed-slab invoices.
+  const masterRateById = new Map();
+  const allStock = await stockItemService.getAll(ctx.company_id);
+  if (allStock.success) {
+    for (const s of allStock.stockItems || []) masterRateById.set(s.item_id, s.gst_rate);
+  }
 
   for (let i = 0; i < (parsedVouchers || []).length; i++) {
     const v = parsedVouchers[i];
@@ -578,6 +611,13 @@ const importVouchersPhase = async (parsedVouchers, ctx, resolver) => {
         unit_id: inv.unit ? resolver.resolveUnit(inv.unit) || null : null,
       });
     }
+
+    // Tally carries GST as tax-ledger postings only — it never repeats the rate on the
+    // inventory line, and our GST engine reads the line. Derive it from the tax actually
+    // booked on THIS voucher (not the item master, whose single current rate contradicts
+    // historical invoices of the same item at a different slab). Vouchers that fit
+    // neither tier keep rate 0 and surface in Uncertain for a human.
+    applyGstRates(stockEntries, v.entries, masterRateById);
 
     const voucherType = mapVoucherType(v.voucherType);
 
@@ -637,7 +677,13 @@ const importMasters = async (parsed, ctx) => {
   const ledgers = await importLedgers(parsed.ledgers, ctx, resolver);
   const stockItems = await importStockItems(parsed.stockItems, ctx, resolver, units);
 
-  return { resolver, groups, units, ledgers, stockItems };
+  // Tally's export does not say which Duties & Taxes ledgers are GST tax heads. Without
+  // the tag the GST engine sees no booked tax at all ("Applicable Tax Ledger is not
+  // selected"), so tag them here — and before vouchers import, since the per-voucher
+  // rate derivation reads booked tax through these tags.
+  const gstLedgers = await tagGstLedgers(ctx.company_id);
+
+  return { resolver, groups, units, ledgers, stockItems, gstLedgers };
 };
 
 // Import vouchers only. Builds (or reuses) a resolver; resolves ledger names

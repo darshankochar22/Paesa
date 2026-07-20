@@ -43,9 +43,30 @@ const normDoc = (doc = {}) => {
   // only when it actually carries them, so a bare {inum,val} document (no tax anywhere) keeps an
   // empty item list and still matches on invoice value rather than a spurious zero-taxable line.
   const items = rawItems && rawItems.length ? rawItems : hasInlineTax(doc) ? [doc] : [];
+  // ntty is the note type: 'C' credit / 'D' debit. A vendor CREDIT note REDUCES the ITC the
+  // portal shows, so losing this flag makes credit notes inflate the portal side.
+  const ntty = String(doc.ntty ?? doc.nt_typ ?? doc.note_type ?? '')
+    .trim()
+    .toUpperCase()
+    .charAt(0);
   return {
     inum: String(doc.inum ?? doc.ntnum ?? doc.nt_num ?? ''),
     val: num(doc.val),
+    // Document date, place of supply, invoice type and reverse-charge flag: Tally shows
+    // these on the portal side of the reconciliation, and a missing date makes a
+    // period-misfiled invoice impossible to spot.
+    idt: doc.idt ?? doc.dt ?? null,
+    pos: doc.pos ?? null,
+    inv_typ: doc.inv_typ ?? null,
+    rev: doc.rev ?? null,
+    // GSTR-2B only: whether this document's ITC is available, and if not, why. This is
+    // the whole point of 2B over 2A — without it eligible and ineligible credit are
+    // indistinguishable.
+    itcavl: doc.itcavl ?? null,
+    rsn: doc.rsn ?? null,
+    // Amendments carry the ORIGINAL document number they amend.
+    oinum: doc.oinum ?? doc.onum ?? null,
+    ...(ntty === 'C' || ntty === 'D' ? { ntty } : {}),
     itms: items.map(normItem),
   };
 };
@@ -90,14 +111,18 @@ function buildImportPayload(rawBySection = {}) {
     acc.notes.push(...(root.cdnr || []), ...(root.cdn || []), ...(root.cdna || []));
   }
 
+  // Notes stay in their OWN bucket. Folding them into b2b lost two things: the portal's
+  // Credit/Debit Notes section always read empty (everything was tagged b2b), and a
+  // vendor credit note was added to the portal totals instead of reducing them.
   const payload = {
-    b2b: [...acc.b2b, ...acc.notes].map(normSupplier),
+    b2b: acc.b2b.map(normSupplier),
     b2ba: acc.b2ba.map(normSupplier),
+    cdn: acc.notes.map(normSupplier),
   };
 
   let suppliers = 0;
   let documents = 0;
-  for (const key of ['b2b', 'b2ba']) {
+  for (const key of ['b2b', 'b2ba', 'cdn']) {
     for (const s of payload[key]) {
       suppliers++;
       documents += s.inv.length;

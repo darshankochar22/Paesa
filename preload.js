@@ -866,6 +866,7 @@ contextBridge.exposeInMainWorld('api', {
     pickFolder: () => invoke('tally:pickFolder'),
     previewFolder: (params) => invoke('tally:previewFolder', params),
     importFolder: (params) => invoke('tally:importFolder', params),
+    repairImportedGst: (params) => invoke('tally:repairImportedGst', params),
     // progress events during a folder import; returns an unsubscribe fn
     onImportProgress: (cb) => {
       const listener = (_e, info) => cb(info);

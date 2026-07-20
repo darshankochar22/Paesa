@@ -185,6 +185,8 @@ describe('GSTR-2B Reconciliation Report (ReconReturnView)', () => {
           fy_id: 1,
           kind: '2B',
           gst_registration_id: 7,
+          // Whole financial year until a month is picked in the right-hand period panel.
+          return_period: null,
         });
       },
       { timeout: 3000 },

@@ -16,6 +16,7 @@ import { EmptyState } from '@/components/blocks/EmptyState';
 import { cn } from '@/lib/utils';
 import { exportRowsToCsv } from '@/lib/exportCsv';
 import PortalFetchPopup from '../components/PortalFetchPopup';
+import ReconRightPanel, { type ReconPeriod } from './ReconRightPanel';
 import {
   type ReconKind,
   type DualAmounts,
@@ -90,6 +91,8 @@ export default function ReconReturnView({ kind }: { kind: ReconKind }) {
   const [data, setData] = useState<any>(null);
   const [fetchedReg, setFetchedReg] = useState<any>(null);
   const [fetchOpen, setFetchOpen] = useState(false);
+  // null = whole financial year (the default view); MMYYYY narrows to one return period.
+  const [period, setPeriod] = useState<string | null>(null);
 
   const activeReg = location.state?.registration || fetchedReg;
   const registrationName = activeReg?.state_id
@@ -119,6 +122,7 @@ export default function ReconReturnView({ kind }: { kind: ReconKind }) {
         kind,
         // The books side must honour the registration named in the header.
         gst_registration_id: reg?.gst_id ?? null,
+        return_period: period,
       });
       if (res.success) setData(res.payload);
       else setError(res.error || `Failed to load GSTR-${kind} reconciliation`);
@@ -127,7 +131,7 @@ export default function ReconReturnView({ kind }: { kind: ReconKind }) {
     } finally {
       setLoading(false);
     }
-  }, [companyId, fyId, kind, location.state, fetchedReg]);
+  }, [companyId, fyId, kind, location.state, fetchedReg, period]);
 
   useEffect(() => {
     loadData();
@@ -175,6 +179,7 @@ export default function ReconReturnView({ kind }: { kind: ReconKind }) {
   const periodLabel =
     data?.period_label ?? (activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : '');
   const lastActivity = data?.last_gst_activity ?? 'No Activity Found';
+  const periods: ReconPeriod[] = data?.periods ?? [];
 
   const grand = dataRows.reduce(
     (acc, s) => {
@@ -218,7 +223,14 @@ export default function ReconReturnView({ kind }: { kind: ReconKind }) {
 
   const drillParty = (row: DataRow) =>
     navigate(`/master/statutory/gstr${kind.toLowerCase()}/reconciliation/party`, {
-      state: { kind, section: row.key, sectionLabel: row.label, registration: activeReg },
+      state: {
+        kind,
+        section: row.key,
+        sectionLabel: row.label,
+        registration: activeReg,
+        // Carry the selected period into the drill so the party summary matches this screen.
+        returnPeriod: period,
+      },
     });
 
   const drillUncertain = () =>
@@ -335,6 +347,15 @@ export default function ReconReturnView({ kind }: { kind: ReconKind }) {
           </div>
         </>
       }
+      rightPanel={
+        <ReconRightPanel
+          periods={periods}
+          selected={period}
+          onSelect={setPeriod}
+          onFetchPortal={() => setFetchOpen(true)}
+          disabled={loading}
+        />
+      }
       rightSubtitle={
         <>
           <div>{periodLabel}</div>
@@ -388,6 +409,10 @@ export default function ReconReturnView({ kind }: { kind: ReconKind }) {
           kind={kind}
           companyId={companyId}
           fyId={fyId}
+          // Default the download to the period on screen, falling back to the FY's months —
+          // never today's calendar month, which is usually outside the open FY.
+          defaultPeriod={period}
+          fyPeriods={periods.map((p) => p.period)}
           onClose={() => setFetchOpen(false)}
           onImported={loadData}
         />

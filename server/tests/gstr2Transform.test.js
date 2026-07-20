@@ -34,13 +34,15 @@ describe('gstr2Transform.buildImportPayload', () => {
       },
     };
     const { payload, suppliers, documents } = buildImportPayload({ all: raw2b });
-    expect(suppliers).toBe(2); // b2b supplier + folded cdnr supplier
+    expect(suppliers).toBe(2); // one b2b supplier + one cdn supplier
     expect(documents).toBe(2);
     const inv = payload.b2b.find((s) => s.ctin === '27AAAAA0000A1Z5').inv[0];
     expect(inv.inum).toBe('INV-001');
     expect(inv.itms[0].itm_det).toMatchObject({ txval: 1000, camt: 90, samt: 90, iamt: 0 });
-    // Credit note folded into b2b, keyed by its note number.
-    const note = payload.b2b.find((s) => s.ctin === '27BBBBB0000B1Z5').inv[0];
+    // Notes live in their OWN bucket, not b2b: they belong to the Credit/Debit Notes
+    // section, and ntty must survive so a credit note can reduce the portal totals.
+    expect(payload.b2b.find((s) => s.ctin === '27BBBBB0000B1Z5')).toBeUndefined();
+    const note = payload.cdn.find((s) => s.ctin === '27BBBBB0000B1Z5').inv[0];
     expect(note.inum).toBe('CN-9');
     expect(note.itms[0].itm_det.iamt).toBe(36);
   });
@@ -89,7 +91,7 @@ describe('gstr2Transform.buildImportPayload', () => {
     expect(documents).toBe(2);
     const inv = payload.b2b.find((s) => s.ctin === '27AAAAA0000A1Z5').inv[0];
     expect(inv.itms[0].itm_det).toMatchObject({ txval: 1000, camt: 90, samt: 90, iamt: 0 });
-    const note = payload.b2b.find((s) => s.ctin === '27BBBBB0000B1Z5').inv[0];
+    const note = payload.cdn.find((s) => s.ctin === '27BBBBB0000B1Z5').inv[0];
     expect(note.inum).toBe('CN-2');
     expect(note.itms[0].itm_det).toMatchObject({ txval: 200, iamt: 36 });
   });

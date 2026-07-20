@@ -129,6 +129,7 @@ function register() {
   ipcMain.handle('tally:pickFolder', tallyController.pickTallyFolder);
   ipcMain.handle('tally:previewFolder', tallyController.previewTallyFolder);
   ipcMain.handle('tally:importFolder', tallyController.importTallyFolder);
+  ipcMain.handle('tally:repairImportedGst', tallyController.repairImportedGst);
 }
 
 module.exports = { register };

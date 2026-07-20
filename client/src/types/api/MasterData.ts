@@ -338,6 +338,8 @@ export interface MasterDataAPI {
       fy_id: number;
       kind: '2A' | '2B';
       gst_registration_id?: number | null;
+      // MMYYYY — one month of the open FY. Omit/null for the whole year.
+      return_period?: string | null;
     }) => Promise<{ success: boolean; payload?: any; error?: string }>;
     getReconPartySummary: (data: {
       company_id: number;
@@ -345,6 +347,7 @@ export interface MasterDataAPI {
       kind: '2A' | '2B';
       section: string;
       gst_registration_id?: number | null;
+      return_period?: string | null;
     }) => Promise<{ success: boolean; payload?: any; error?: string }>;
     getReconVoucherRegister: (data: {
       company_id: number;
@@ -353,6 +356,7 @@ export interface MasterDataAPI {
       section: string;
       gstin: string;
       gst_registration_id?: number | null;
+      return_period?: string | null;
     }) => Promise<{ success: boolean; payload?: any; error?: string }>;
     getGSTR1vs3BComparison: (data: {
       company_id: number;

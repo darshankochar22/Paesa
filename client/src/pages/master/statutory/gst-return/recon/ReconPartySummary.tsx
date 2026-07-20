@@ -49,6 +49,8 @@ export default function ReconPartySummary() {
   const section: string = location.state?.section || 'b2b';
   const sectionLabel: string = location.state?.sectionLabel || 'B2B Invoices';
   const registration = location.state?.registration || null;
+  // MMYYYY carried down from the recon screen's period selector; null = whole FY.
+  const returnPeriod: string | null = location.state?.returnPeriod ?? null;
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +68,7 @@ export default function ReconPartySummary() {
         kind,
         section,
         gst_registration_id: registration?.gst_id ?? null,
+        return_period: returnPeriod,
       });
       if (res.success) {
         setParties(res.payload.parties || []);
@@ -76,7 +79,7 @@ export default function ReconPartySummary() {
     } finally {
       setLoading(false);
     }
-  }, [companyId, fyId, kind, section, registration]);
+  }, [companyId, fyId, kind, section, registration, returnPeriod]);
 
   useEffect(() => {
     load();
@@ -84,7 +87,15 @@ export default function ReconPartySummary() {
 
   const drillVouchers = (p: PartyRow) =>
     navigate(`/master/statutory/gstr${kind.toLowerCase()}/reconciliation/register`, {
-      state: { kind, section, sectionLabel, gstin: p.gstin, partyName: p.party_name, registration },
+      state: {
+        kind,
+        section,
+        sectionLabel,
+        gstin: p.gstin,
+        partyName: p.party_name,
+        registration,
+        returnPeriod,
+      },
     });
 
   const grand = parties.reduce(

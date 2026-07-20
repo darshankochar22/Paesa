@@ -17,12 +17,30 @@ const { sql } = require('drizzle-orm');
 const {
   getDatesForFY,
   fetchPeriodVouchers,
+  buildFyMonths,
   classifyVoucher,
   invoiceOf,
   INWARD_RECON_TYPES,
 } = require('./core');
 const { _recon } = require('./portalRecon');
-const { invMatchKey, portalInvoiceTotals, withinTolerance } = _recon;
+const { invMatchKey, invTailKey, portalInvoiceTotals, withinTolerance } = _recon;
+
+// The document number a book voucher is matched on — the supplier's bill number when
+// recorded, else our own voucher number.
+const bookDocNo = (v) => v.reference_number || v.voucher_number;
+
+// Secondary index for the trailing-digits fallback. A key claimed by more than one
+// portal document is poisoned to AMBIGUOUS so it can never pair.
+const AMBIGUOUS = Symbol('ambiguous');
+const buildTailIndex = (portalMap) => {
+  const idx = new Map();
+  for (const entry of portalMap.values()) {
+    const key = invTailKey(entry.ctin, entry.inum);
+    if (!key) continue;
+    idx.set(key, idx.has(key) ? AMBIGUOUS : entry);
+  }
+  return idx;
+};
 
 // Books voucher_type → drill section. Notes fold into the CDN section; everything
 // else inward is a B2B invoice (imports would extend this once sandbox data exists).
@@ -54,15 +72,16 @@ const addBook = (acc, v) => {
     (Number(v.igst) || 0) + (Number(v.cgst) || 0) + (Number(v.sgst) || 0) + (Number(v.cess) || 0);
   acc.invoice += invoiceOf(v);
 };
-const addPortal = (acc, t) => {
+// `sign` is -1 for a vendor credit note, which REDUCES the portal-side totals.
+const addPortal = (acc, t, sign = 1) => {
   acc.count++;
-  acc.taxable += Number(t.txval) || 0;
-  acc.igst += Number(t.igst) || 0;
-  acc.cgst += Number(t.cgst) || 0;
-  acc.sgst += Number(t.sgst) || 0;
-  acc.cess += Number(t.cess) || 0;
-  acc.tax += Number(t.tax) || 0;
-  acc.invoice += Number(t.val) || 0;
+  acc.taxable += sign * (Number(t.txval) || 0);
+  acc.igst += sign * (Number(t.igst) || 0);
+  acc.cgst += sign * (Number(t.cgst) || 0);
+  acc.sgst += sign * (Number(t.sgst) || 0);
+  acc.cess += sign * (Number(t.cess) || 0);
+  acc.tax += sign * (Number(t.tax) || 0);
+  acc.invoice += sign * (Number(t.val) || 0);
 };
 const round = (a) => {
   for (const k of Object.keys(a)) a[k] = Number((a[k] || 0).toFixed(2));
@@ -83,6 +102,10 @@ const buildPortalIndex = (importedRows) => {
     for (const [section, key] of [
       ['b2b', 'b2b'],
       ['b2b', 'b2ba'],
+      // Notes belong to the Credit/Debit Notes section, not B2B. Payloads imported
+      // before notes got their own bucket have no `cdn` key — they simply contribute
+      // nothing here, exactly as before.
+      ['cdn', 'cdn'],
     ]) {
       for (const p of payload[key] || []) {
         for (const inv of p.inv || []) {
@@ -90,6 +113,13 @@ const buildPortalIndex = (importedRows) => {
             ctin: p.ctin,
             inum: inv.inum,
             section,
+            // A vendor CREDIT note reduces the ITC the portal reports; a debit note adds.
+            // Totals stay positive so matching compares magnitudes — the sign is applied
+            // when aggregating into the section/party columns.
+            sign: String(inv.ntty || '').toUpperCase() === 'C' ? -1 : 1,
+            idt: inv.idt || null,
+            itcavl: inv.itcavl ?? null,
+            rsn: inv.rsn ?? null,
             totals: portalInvoiceTotals(inv),
             matched: false,
           });
@@ -105,15 +135,31 @@ const buildPortalIndex = (importedRows) => {
 // portal statement for ITS return period was actually fetched — otherwise nothing can be
 // asserted about it and it is reported as "no_portal" (period not fetched) instead of a
 // false discrepancy.
-const voucherStatus = (v, portalMap, importedPeriods) => {
-  const portal = portalMap.get(invMatchKey(v.party_gstin, v.reference_number || v.voucher_number));
+const voucherStatus = (v, portalMap, importedPeriods, tailIdx, booksTailCount) => {
+  let portal = portalMap.get(invMatchKey(v.party_gstin, bookDocNo(v)));
+  let matchedOn = 'number';
+  if (!portal) {
+    // Second pass: same supplier, same trailing digits. Requires the key to identify
+    // exactly ONE document on each side — one portal candidate and one book voucher —
+    // so a shared tail leaves both sides unmatched instead of pairing the wrong two.
+    const key = invTailKey(v.party_gstin, bookDocNo(v));
+    const cand = key ? tailIdx.get(key) : null;
+    if (cand && cand !== AMBIGUOUS && !cand.matched && booksTailCount.get(key) === 1) {
+      portal = cand;
+      matchedOn = 'trailing-digits';
+    }
+  }
   if (!portal) {
     const d = String(v.date || '');
     const period = `${d.slice(5, 7)}${d.slice(0, 4)}`;
     return { status: importedPeriods.has(period) ? 'only_books' : 'no_portal', portal: null };
   }
   portal.matched = true;
-  const bookTax = (Number(v.igst) || 0) + (Number(v.cgst) || 0) + (Number(v.sgst) || 0);
+  portal.matchedOn = matchedOn;
+  // Cess-inclusive on BOTH sides — portalInvoiceTotals.tax now counts cess too, so a
+  // cess invoice is compared like-for-like instead of always reading as a mismatch.
+  const bookTax =
+    (Number(v.igst) || 0) + (Number(v.cgst) || 0) + (Number(v.sgst) || 0) + (Number(v.cess) || 0);
   const t = portal.totals;
   const ok = t.hasItms
     ? withinTolerance(t.tax, bookTax) && withinTolerance(t.txval, Number(v.taxable) || 0)
@@ -137,14 +183,29 @@ const partyNode = (gstin, name) => ({
 // The whole nested reconciliation for one statement kind. Everything else slices this.
 // gst_registration_id scopes the books side to one GST registration (the screen header
 // names a registration — the data must honour it for multi-GSTIN companies).
-const buildReconDetail = async (company_id, fy_id, kind, gst_registration_id = null) => {
-  const { fyLabel } = await getDatesForFY(fy_id);
+// return_period (MMYYYY) narrows BOTH sides to a single month — the books vouchers and
+// the imported portal statement. Null = the whole financial year (the default view).
+const buildReconDetail = async (
+  company_id,
+  fy_id,
+  kind,
+  gst_registration_id = null,
+  return_period = null,
+) => {
+  const { fyLabel, fyStartDate } = await getDatesForFY(fy_id);
+  const months = buildFyMonths(fyStartDate);
+  // A period outside the open FY would silently return nothing — reject it instead.
+  const period =
+    return_period && months.some((m) => m.period === String(return_period))
+      ? String(return_period)
+      : null;
+  const periodLabel = period ? months.find((m) => m.period === period).label : fyLabel;
   const { rows, companyGstinInvalid } = await fetchPeriodVouchers(
     company_id,
     fy_id,
-    null,
+    period,
     gst_registration_id,
-    true,
+    !period,
   );
 
   let portalMap = new Map();
@@ -152,13 +213,16 @@ const buildReconDetail = async (company_id, fy_id, kind, gst_registration_id = n
   let lastImportAt = null;
   try {
     // Fixed table per kind (whitelisted) — tagged-template style, matching portalRecon.
+    const periodFilter = period ? sql`AND return_period = ${period}` : sql``;
     const importedRows =
       kind === '2A'
         ? await db.all(
-            sql`SELECT * FROM gstr2a_imports WHERE company_id = ${company_id} AND fy_id = ${fy_id}`,
+            sql`SELECT * FROM gstr2a_imports
+                WHERE company_id = ${company_id} AND fy_id = ${fy_id} ${periodFilter}`,
           )
         : await db.all(
-            sql`SELECT * FROM gstr2b_imports WHERE company_id = ${company_id} AND fy_id = ${fy_id}`,
+            sql`SELECT * FROM gstr2b_imports
+                WHERE company_id = ${company_id} AND fy_id = ${fy_id} ${periodFilter}`,
           );
     portalMap = buildPortalIndex(importedRows);
     for (const r of importedRows) {
@@ -187,6 +251,18 @@ const buildReconDetail = async (company_id, fy_id, kind, gst_registration_id = n
     return p;
   };
 
+  // Trailing-digits fallback indexes. The books-side count spans every inward voucher
+  // (not just the ones that reach the matcher) so a tail shared with a filtered-out
+  // voucher still counts as ambiguous — erring toward "don't pair" rather than pairing
+  // the wrong document.
+  const tailIdx = buildTailIndex(portalMap);
+  const booksTailCount = new Map();
+  for (const v of rows) {
+    if (!INWARD_RECON_TYPES.includes(v.voucher_type)) continue;
+    const key = invTailKey(v.party_gstin, bookDocNo(v));
+    if (key) booksTailCount.set(key, (booksTailCount.get(key) || 0) + 1);
+  }
+
   let uncertain = 0;
   let notInScope = 0; // unregistered/consumer purchases — can never appear on the portal
   const voucherRow = (v) => ({
@@ -206,17 +282,31 @@ const buildReconDetail = async (company_id, fy_id, kind, gst_registration_id = n
       (Number(v.igst) || 0) + (Number(v.cgst) || 0) + (Number(v.sgst) || 0) + (Number(v.cess) || 0),
     invoice: invoiceOf(v),
   });
-  const portalRowOf = (portal) => ({
-    doc_no: portal.inum,
-    gstin: portal.ctin,
-    taxable: portal.totals.txval,
-    igst: portal.totals.igst,
-    cgst: portal.totals.cgst,
-    sgst: portal.totals.sgst,
-    cess: portal.totals.cess,
-    tax: portal.totals.tax,
-    invoice: portal.totals.val,
-  });
+  // Portal-side row. Amounts carry the note sign so a vendor credit note reads as the
+  // negative it is, matching the section totals.
+  const portalRowOf = (portal) => {
+    const s = portal.sign || 1;
+    return {
+      doc_no: portal.inum,
+      gstin: portal.ctin,
+      doc_date: portal.idt || null,
+      taxable: s * portal.totals.txval,
+      igst: s * portal.totals.igst,
+      cgst: s * portal.totals.cgst,
+      sgst: s * portal.totals.sgst,
+      cess: s * portal.totals.cess,
+      tax: s * portal.totals.tax,
+      invoice: s * portal.totals.val,
+      // GSTR-2B ITC eligibility. 'N' means the credit cannot be claimed — `rsn` carries
+      // the portal's reason code. Null on 2A, which has no eligibility concept.
+      itc_available: portal.itcavl ?? null,
+      itc_reason: portal.rsn ?? null,
+      // 'trailing-digits' = paired on the numeric tail because the book document number
+      // is an abbreviation of the portal's. Surfaced so a user can see the join was
+      // inferred rather than exact.
+      matched_on: portal.matchedOn || null,
+    };
+  };
 
   for (const v of rows) {
     if (!INWARD_RECON_TYPES.includes(v.voucher_type)) continue;
@@ -236,7 +326,13 @@ const buildReconDetail = async (company_id, fy_id, kind, gst_registration_id = n
         .trim()
         .toUpperCase() || '(no GSTIN)';
     const party = ensureParty(sec, gstinKey, v.ledger_name || v.party_name);
-    const { status, portal } = voucherStatus(v, portalMap, importedPeriods);
+    const { status, portal } = voucherStatus(
+      v,
+      portalMap,
+      importedPeriods,
+      tailIdx,
+      booksTailCount,
+    );
 
     addBook(sec.books, v);
     addBook(party.books, v);
@@ -244,8 +340,8 @@ const buildReconDetail = async (company_id, fy_id, kind, gst_registration_id = n
     // its normalized number — otherwise the portal totals double-count.
     if (portal && !portal.counted) {
       portal.counted = true;
-      addPortal(sec.portal, portal.totals);
-      addPortal(party.portal, portal.totals);
+      addPortal(sec.portal, portal.totals, portal.sign);
+      addPortal(party.portal, portal.totals, portal.sign);
     }
     party.counts[status]++;
     const row = voucherRow(v);
@@ -265,8 +361,8 @@ const buildReconDetail = async (company_id, fy_id, kind, gst_registration_id = n
         .trim()
         .toUpperCase() || '(no GSTIN)';
     const party = ensureParty(sec, ctinKey, '');
-    addPortal(sec.portal, portal.totals);
-    addPortal(party.portal, portal.totals);
+    addPortal(sec.portal, portal.totals, portal.sign);
+    addPortal(party.portal, portal.totals, portal.sign);
     party.counts.only_portal++;
     party.vouchers.only_portal.push({ book: null, portal: portalRowOf(portal) });
   }
@@ -296,7 +392,9 @@ const buildReconDetail = async (company_id, fy_id, kind, gst_registration_id = n
 
   return {
     kind,
-    fyLabel,
+    fyLabel: periodLabel,
+    period,
+    months,
     uncertain,
     notInScope,
     sections,
@@ -385,9 +483,31 @@ const buildReturnView = (d, kind) => {
   ];
 };
 
-const getReconSummary = async (company_id, fy_id, kind, gst_registration_id = null) => {
+// Which FY months already have a fetched portal statement — drives the period list's
+// "fetched" marker. Unfiltered by the selected period on purpose.
+const fetchedPeriods = async (company_id, fy_id, kind) => {
   try {
-    const d = await buildReconDetail(company_id, fy_id, kind, gst_registration_id);
+    const table = kind === '2A' ? 'gstr2a_imports' : 'gstr2b_imports';
+    const rows = await db.all(
+      sql`SELECT DISTINCT return_period FROM ${sql.raw(table)}
+          WHERE company_id = ${company_id} AND fy_id = ${fy_id}`,
+    );
+    return new Set(rows.map((r) => String(r.return_period)));
+  } catch {
+    return new Set();
+  }
+};
+
+const getReconSummary = async (
+  company_id,
+  fy_id,
+  kind,
+  gst_registration_id = null,
+  return_period = null,
+) => {
+  try {
+    const d = await buildReconDetail(company_id, fy_id, kind, gst_registration_id, return_period);
+    const fetched = await fetchedPeriods(company_id, fy_id, kind);
     const return_view = buildReturnView(d, kind);
     const t = d.totals;
     return {
@@ -408,6 +528,9 @@ const getReconSummary = async (company_id, fy_id, kind, gst_registration_id = nu
           not_in_portal_scope: d.notInScope,
         },
         period_label: d.fyLabel,
+        return_period: d.period,
+        // Period picker source: every month of the open FY + whether it was fetched.
+        periods: d.months.map((m) => ({ ...m, fetched: fetched.has(m.period) })),
         has_portal: d.hasPortal,
         last_gst_activity: d.lastImportAt
           ? `GSTR-${kind} imported on ${d.lastImportAt}`
@@ -425,9 +548,10 @@ const getReconPartySummary = async (
   kind,
   section,
   gst_registration_id = null,
+  return_period = null,
 ) => {
   try {
-    const d = await buildReconDetail(company_id, fy_id, kind, gst_registration_id);
+    const d = await buildReconDetail(company_id, fy_id, kind, gst_registration_id, return_period);
     const sec = d.sections[section];
     const parties = sec
       ? [...sec.parties.values()].map((p) => ({
@@ -459,9 +583,10 @@ const getReconVoucherRegister = async (
   section,
   gstin,
   gst_registration_id = null,
+  return_period = null,
 ) => {
   try {
-    const d = await buildReconDetail(company_id, fy_id, kind, gst_registration_id);
+    const d = await buildReconDetail(company_id, fy_id, kind, gst_registration_id, return_period);
     const parties = d.sections[section]?.parties;
     // Party keys are uppercased GSTINs (or the literal '(no GSTIN)') — try both.
     const party =
