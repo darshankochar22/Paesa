@@ -106,6 +106,25 @@ describe('gstr2Transform.buildImportPayload', () => {
     expect(suppliers).toBe(1);
   });
 
+  it("keeps the supplier's trade name so portal-only documents can name their party", () => {
+    const { payload } = buildImportPayload({
+      all: {
+        data: {
+          docdata: {
+            b2b: [
+              { ctin: '27AAAAA0000A1Z5', trdnm: 'Alpha Traders', inv: [{ inum: 'I1', val: 100 }] },
+              { ctin: '27BBBBB0000B1Z5', lgnm: 'Beta Legal Name', inv: [{ inum: 'I2', val: 200 }] },
+              { ctin: '27CCCCC0000C1Z5', inv: [{ inum: 'I3', val: 300 }] },
+            ],
+          },
+        },
+      },
+    });
+    expect(payload.b2b.map((s) => s.trdnm)).toEqual(['Alpha Traders', 'Beta Legal Name', '']);
+    // Re-normalizing an already-normalized payload must not drop the name.
+    expect(buildImportPayload({ all: payload }).payload.b2b[0].trdnm).toBe('Alpha Traders');
+  });
+
   it('returns zero documents for empty/garbage input without throwing', () => {
     expect(buildImportPayload({}).documents).toBe(0);
     expect(buildImportPayload({ all: { nonsense: true } }).documents).toBe(0);

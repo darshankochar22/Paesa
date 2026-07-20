@@ -77,10 +77,16 @@ const normDoc = (doc = {}) => {
   };
 };
 
-// One supplier bucket ({ctin, inv|nt}) → {ctin, inv} with normalized docs.
+// One supplier bucket ({ctin, inv|nt}) → {ctin, trdnm, inv} with normalized docs.
+// `trdnm` is the supplier's trade/legal name as filed on the portal — the ONLY name a
+// portal-only document has, since no ledger exists in books to borrow one from.
 const normSupplier = (s = {}) => {
   const docs = Array.isArray(s.inv) ? s.inv : Array.isArray(s.nt) ? s.nt : [];
-  return { ctin: String(s.ctin || ''), inv: docs.map(normDoc) };
+  return {
+    ctin: String(s.ctin || ''),
+    trdnm: String(s.trdnm ?? s.lgnm ?? s.nm ?? s.trade_name ?? s.cpty ?? '').trim(),
+    inv: docs.map(normDoc),
+  };
 };
 
 // Walk a raw portal response down to the object that carries the supplier arrays,

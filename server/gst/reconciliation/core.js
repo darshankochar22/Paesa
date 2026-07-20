@@ -443,12 +443,13 @@ const classifyVoucher = (v, returnType, companyGstinInvalid) => {
   if (stockCount === 0) {
     // Place of supply is auto-derived from the party/company state (as in TallyPrime), so a
     // blank place-of-supply is never surfaced; a voucher with no stock lines at all has
-    // nothing to derive GST from — EXCEPT an accounting-mode purchase (no inventory lines)
-    // that booked real GST through Duties & Taxes ledgers: for the inward 2A/2B
-    // reconciliation that is a complete, matchable document, not a correction.
-    const accountingModeInward =
-      inwardRecon && Number(v.gst_ledger_lines || 0) > 0 && taxBooked >= 0.01;
-    if (!accountingModeInward) {
+    // nothing to derive GST from — EXCEPT an accounting-mode voucher that booked real GST
+    // through Duties & Taxes ledgers. That is a complete, reportable document, not a
+    // correction: a SERVICE business bills entirely this way and never has item lines, so
+    // requiring them would push its whole turnover into Uncertain and out of GSTR-1.
+    // The taxable value is derived above from the party total minus the booked tax.
+    const accountingModeGst = Number(v.gst_ledger_lines || 0) > 0 && taxBooked >= 0.01;
+    if (!accountingModeGst) {
       exceptions.push('No item or tax details available in the voucher');
     }
   } else {
@@ -515,7 +516,11 @@ const classifyVoucher = (v, returnType, companyGstinInvalid) => {
   );
   let section = null;
   if (isNote(v.voucher_type)) section = hasGstin ? 'cdnr' : 'cdnur';
-  else if (Number(v.max_rate || 0) === 0) section = 'nil';
+  // Nil-rated means NO tax on the supply. max_rate comes off the stock lines, so an
+  // accounting-mode voucher (a service bill with no item lines) always reports 0 — and
+  // was being filed as nil-rated even though it booked real CGST/SGST/IGST. Tax actually
+  // booked is the deciding evidence.
+  else if (Number(v.max_rate || 0) === 0 && taxBooked < 0.01) section = 'nil';
   else if (hasGstin) section = 'b2b';
   else if (Number(v.is_interstate || 0) === 1 && invoiceOf(v) > B2CL_THRESHOLD) section = 'b2cl';
   else section = 'b2cs';

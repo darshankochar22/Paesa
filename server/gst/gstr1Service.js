@@ -18,6 +18,18 @@ const { resolveStateCode, resolveTaxRate, computeVoucherTaxLines } = require('./
 const { isOutwardVoucher, isNote } = require('./reconciliation/direction');
 const { buildDocIssue } = require('./docIssue');
 
+// Which GST component a duty ledger represents, from its configured gst_tax_type or,
+// failing that, its name. Used to split an accounting invoice's Duties & Taxes postings
+// into the IGST / CGST / SGST / Cess buckets a GSTR-1 item row needs.
+const gstComponentOfLedger = (taxType, name) => {
+  const s = `${taxType || ''} ${name || ''}`.toUpperCase();
+  if (s.includes('CESS')) return 'CESS';
+  if (s.includes('CGST')) return 'CGST';
+  if (s.includes('SGST') || s.includes('UTGST')) return 'SGST';
+  if (s.includes('IGST')) return 'IGST';
+  return null;
+};
+
 // Inter-state B2C invoices at or above this value are reported invoice-wise (B2CL/CDNUR),
 // smaller ones net into B2CS. Notification 12/2024-Central Tax (Rule 59(4)) cut this from
 // ₹2.5 lakh to ₹1 lakh w.e.f. 1 Aug 2024.
@@ -163,11 +175,27 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
     // GST duty ledgers for this company. A voucher that posts to none of these charged no
     // GST, so we must NOT synthesise tax from the item's rate — its tax stays zero.
     const gstLedgerRows = await db.all(
-      sql`SELECT sd.ledger_id FROM ledger_statutory_details sd
+      sql`SELECT sd.ledger_id, sd.gst_tax_type, l.name FROM ledger_statutory_details sd
           JOIN ${ledgers} l ON l.ledger_id = sd.ledger_id
           WHERE l.company_id = ${company_id} AND sd.type_of_duty_tax = 'GST'`,
     );
     const gstLedgerIds = new Set(gstLedgerRows.map((r) => Number(r.ledger_id)));
+    // Which GST component each duty ledger represents — needed to split an accounting
+    // invoice's postings into IGST / CGST / SGST / Cess.
+    const gstLedgerTaxType = new Map(
+      gstLedgerRows.map((r) => [Number(r.ledger_id), r.gst_tax_type || r.name]),
+    );
+    // SAC per ledger: on an accounting invoice the service ledger carries the HSN/SAC that
+    // a stock line would otherwise supply.
+    const ledgerSacRows = await db.all(
+      sql`SELECT sd.ledger_id, sd.hsn_sac_code FROM ledger_statutory_details sd
+          JOIN ${ledgers} l ON l.ledger_id = sd.ledger_id
+          WHERE l.company_id = ${company_id}
+            AND sd.hsn_sac_code IS NOT NULL AND TRIM(sd.hsn_sac_code) != ''`,
+    );
+    const ledgerSac = new Map(
+      ledgerSacRows.map((r) => [Number(r.ledger_id), String(r.hsn_sac_code).trim()]),
+    );
 
     for (const voucher of rawVouchers) {
       // GSTR-1 is OUTWARD only: Sales and Credit Notes (sales returns). A Debit Note in this
@@ -193,8 +221,22 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
         sql`SELECT * FROM ${gstVoucherTaxLines} WHERE ${gstVoucherTaxLines.voucherId} = ${voucher.voucher_id}`,
       );
 
-      // Skip only when there is genuinely nothing to report (no stock lines AND no tax lines).
-      if (stockEntries.length === 0 && taxLines.length === 0) continue;
+      // Ledger postings are needed before the skip: an ACCOUNTING INVOICE (Tally's
+      // Ctrl+H mode — a service bill with no inventory line) carries its GST only as
+      // Duties & Taxes postings. Imported vouchers also have no stored tax lines
+      // (import_mode skips GST recompute), so requiring stock or tax lines dropped a
+      // services company's entire turnover out of the return.
+      const entries = await db.all(
+        sql`SELECT * FROM ${voucherEntries} WHERE ${voucherEntries.voucherId} = ${voucher.voucher_id}`,
+      );
+      const gstPostings = entries.filter((e) => gstLedgerIds.has(Number(e.ledger_id)));
+      // An accounting invoice is defined by having NO STOCK LINES — not by whether tax
+      // lines happen to exist yet. Tying it to the tax lines meant that materialising
+      // them flipped the flag and re-broke every service invoice.
+      const isAccountingInvoice = stockEntries.length === 0;
+
+      // Skip only when there is genuinely nothing to report.
+      if (isAccountingInvoice && taxLines.length === 0 && gstPostings.length === 0) continue;
 
       // Exclude "Uncertain" vouchers from the return sections, matching the Statistics /
       // Track-Activities classifier: an invalid company GSTIN or any missing/invalid
@@ -203,17 +245,17 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
       // (valid) GSTIN is NOT an error — under GST law that is an unregistered buyer and
       // the sale files under B2C (B2CS/B2CL/CDNUR), which the section gates below handle.
       // HSN is validated from stock lines when present, else from the accounting tax lines.
+      // An accounting invoice's SAC lives on the SERVICE LEDGER, not on a stock line.
+      // A blank SAC there is a real defect, but TallyPrime still reports the invoice in
+      // B2B/B2C and raises the missing SAC separately — dropping the sale from the return
+      // would understate turnover, which is the worse error. So warn and carry on; only
+      // the HSN/SAC summary (table 12) omits it.
       const hsnBad = stockEntries.length
         ? stockEntries.some((s) => validateHsn(s.hsn_code) !== null)
-        : taxLines.some((t) => validateHsn(t.hsn_code) !== null);
+        : false;
       if (!validateGSTIN(companyGSTIN) || hsnBad) {
         continue;
       }
-
-      // Fetch entries to calculate total invoice value
-      const entries = await db.all(
-        sql`SELECT * FROM ${voucherEntries} WHERE ${voucherEntries.voucherId} = ${voucher.voucher_id}`,
-      );
 
       // Sum invoice total (the party ledger amount)
       let invoiceValue = 0;
@@ -331,6 +373,61 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
           });
           continue;
         }
+      }
+
+      // ACCOUNTING INVOICE: build the tax lines from the Duties & Taxes postings. The
+      // taxable value is the party total minus the tax actually booked — the same
+      // derivation the reconciliation classifier uses, so the two agree. The rate is
+      // derived from tax / taxable (service ledgers rarely carry a configured rate), and
+      // the SAC comes off the service ledger's statutory details.
+      if (isAccountingInvoice && taxLines.length === 0 && gstPostings.length > 0) {
+        const comp = (e) =>
+          gstComponentOfLedger(gstLedgerTaxType.get(Number(e.ledger_id)), e.ledger_name);
+        const sum = (c) =>
+          gstPostings
+            .filter((e) => comp(e) === c)
+            .reduce((t, e) => t + Math.abs(Number(e.amount) || 0), 0);
+        const igst = sum('IGST');
+        const cgst = sum('CGST');
+        const sgst = sum('SGST');
+        const cess = sum('CESS');
+        const taxTotal = igst + cgst + sgst + cess;
+        const taxable = Number((Math.abs(Number(invoiceValue) || 0) - taxTotal).toFixed(2));
+        // The supply ledger is the non-party, non-tax posting — its SAC describes the service.
+        const supplyEntry = entries.find(
+          (e) =>
+            Number(e.ledger_id) !== Number(voucher.party_ledger_id) &&
+            !gstLedgerIds.has(Number(e.ledger_id)),
+        );
+        const sac = supplyEntry ? ledgerSac.get(Number(supplyEntry.ledger_id)) || null : null;
+        if (!sac) {
+          errors.push({
+            voucher_id: voucher.voucher_id,
+            voucher_number: voucher.voucher_number,
+            error: `HSN/SAC is not set on the service ledger "${supplyEntry?.ledger_name || '?'}" — the invoice is reported, but it is excluded from the HSN/SAC summary (table 12)`,
+          });
+        }
+        // Rate off the booked tax, snapped to the nearest standard slab.
+        const pct = taxable > 0 ? (taxTotal / taxable) * 100 : 0;
+        const slab = [0.25, 3, 5, 12, 18, 28].find((x) => Math.abs(pct - x) <= 0.3);
+        const fullRate = slab != null ? slab : Number(pct.toFixed(2));
+        const push = (tax_type, amount, rate) =>
+          amount > 0.001 &&
+          taxLines.push({ hsn_code: sac, assessable_value: taxable, tax_type, rate, amount });
+        if (igst > 0.001) push('IGST', igst, fullRate);
+        else {
+          push('CGST', cgst, fullRate / 2);
+          push('SGST', sgst, fullRate / 2);
+        }
+        if (cess > 0.001) push('CESS', cess, 0);
+        if (!taxLines.length && taxable > 0)
+          taxLines.push({
+            hsn_code: sac,
+            assessable_value: taxable,
+            tax_type: 'TAXABLE',
+            rate: 0,
+            amount: 0,
+          });
       }
 
       // No GST was charged (no tax lines): keep the invoice's TAXABLE value with zero tax so
@@ -453,8 +550,26 @@ const generateGSTR1 = async (company_id, fy_id, return_period, gst_registration_
       const posStateCode = isExport
         ? '96'
         : resolveStateCode(posState, voucher.party_gstin) || companyStateCode;
-      const isInterState = isExport ? true : companyStateCode !== posStateCode;
       const invIgst = Object.values(itemsByRate).reduce((s, it) => s + it.iamt, 0);
+      // The tax actually booked is the final word on inter vs intra. Place of supply is
+      // often absent on Tally-imported vouchers (we do not yet decode voucher-level POS),
+      // and defaulting to the company's own state produced an INTRA row carrying IGST —
+      // a combination GSTN rejects outright.
+      const posKnown = !!(voucher.place_of_supply || partyState || voucher.party_gstin);
+      const isInterState = isExport
+        ? true
+        : posKnown
+          ? companyStateCode !== posStateCode
+          : invIgst > 0.001;
+      if (!posKnown && isInterState) {
+        errors.push({
+          voucher_id: voucher.voucher_id,
+          voucher_number: voucher.voucher_number,
+          error:
+            'Interstate supply (IGST charged) but the Place of Supply is not recorded — ' +
+            'set the recipient state before filing; the reported POS is a placeholder.',
+        });
+      }
 
       // Aggregate a set of per-rate items into the shared B2CS accumulator. `sign` is -1 for
       // small unregistered credit notes, which GSTN nets against B2CS rather than CDNUR.

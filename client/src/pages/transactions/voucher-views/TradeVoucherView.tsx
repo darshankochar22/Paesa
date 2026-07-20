@@ -42,26 +42,42 @@ export default function TradeVoucherView({
   const mainLedger = nonPartyEntries.find((e) => !isTaxEntry(e)) || nonPartyEntries[0] || null;
 
   const stockSubtotal = voucher.stock_entries.reduce((s, e) => s + (e.amount || 0), 0);
+  const hasStockLines = voucher.stock_entries.length > 0;
 
-  // Everything that isn't the party or the sales/purchase ledger is a tax / additional
-  // ledger line. Show its GST % when it is a GST ledger — prefer the ledger's configured
-  // rate, else derive it from amount ÷ taxable subtotal (many tax ledgers store rate 0).
-  const additionalRows: AdditionalRow[] = nonPartyEntries
-    .filter((e) => e !== mainLedger)
-    .map((e) => {
-      const isGst = isTaxEntry(e);
-      const configured = Number(e.gst_tax_rate) || 0;
-      const derived = stockSubtotal > 0 && e.amount ? (e.amount / stockSubtotal) * 100 : 0;
-      const rate = configured > 0 ? configured : derived;
-      return {
-        name: e.ledger_name,
-        ratePct: isGst && rate > 0 ? Number(rate.toFixed(2)) : null,
-        amount: e.amount,
-      };
-    });
+  // An ACCOUNTING-ONLY invoice (a service bill — no item lines at all) carries its
+  // taxable value on the sales/purchase ledger itself. Excluding that ledger the way we
+  // do for an item invoice, where the stock lines already represent it, would drop the
+  // entire sale: the subtotal reads 0 and the invoice shows no value anywhere.
+  const taxableBase = hasStockLines ? stockSubtotal : Math.abs(Number(mainLedger?.amount) || 0);
 
-  const additionalTotal = additionalRows.reduce((s, r) => s + (r.amount || 0), 0);
-  const grandTotal = stockSubtotal + additionalTotal;
+  // Ledger lines shown beneath the items. With item lines the sales/purchase ledger is
+  // omitted — the stock rows already represent it. Without them it must be INCLUDED, or
+  // the sale itself never appears anywhere on the invoice.
+  const additionalEntries = nonPartyEntries.filter((e) => !hasStockLines || e !== mainLedger);
+
+  // Show a GST % when it is a GST ledger — prefer the ledger's configured rate, else
+  // derive it from amount ÷ taxable base (many tax ledgers store rate 0).
+  const additionalRows: AdditionalRow[] = additionalEntries.map((e) => {
+    const isGst = isTaxEntry(e);
+    const configured = Number(e.gst_tax_rate) || 0;
+    const derived = taxableBase > 0 && e.amount ? (e.amount / taxableBase) * 100 : 0;
+    const rate = configured > 0 ? configured : derived;
+    return {
+      name: e.ledger_name,
+      ratePct: isGst && rate > 0 ? Number(rate.toFixed(2)) : null,
+      amount: e.amount,
+    };
+  });
+
+  // A line booked on the OPPOSITE side to the sales/purchase ledger REDUCES the invoice
+  // — a Dr round-off on a Sales bill, say. Summing magnitudes overstated the total by
+  // twice the round-off on every such voucher.
+  const mainSide = mainLedger?.type;
+  const additionalTotal = additionalEntries.reduce(
+    (s, e) => s + (mainSide && e.type !== mainSide ? -1 : 1) * (Number(e.amount) || 0),
+    0,
+  );
+  const grandTotal = (hasStockLines ? stockSubtotal : 0) + additionalTotal;
 
   // Price Level — header field shown on the invoice (Tally always renders it,
   // "♦ Not Applicable" when none). Not persisted on the voucher yet, so it reads
@@ -74,7 +90,6 @@ export default function TradeVoucherView({
       : t === 'Debit Note'
         ? voucher.debit_note_details
         : null;
-  const hasStock = voucher.stock_entries.length > 0;
   // Trade vouchers render the Tally accounting-invoice layout: Actual/Billed
   // quantity, Rate + per unit, tax rows continuing the table, one bold total.
   const stockTableVariant = STOCK_TABLE_VARIANT[t] ?? 'invoice';
@@ -134,11 +149,14 @@ export default function TradeVoucherView({
         />
       )}
 
-      {(hasStock || voucher.entries.length > 0) && (
+      {(hasStockLines || voucher.entries.length > 0) && (
         <div className="border-b border-gray-300 shrink-0" />
       )}
 
-      {hasStock && (
+      {/* Rendered whenever there is anything to show — an accounting-only service
+          invoice has no stock lines but still has its sales ledger and taxes, and
+          gating the whole table on stock made those invoices render blank. */}
+      {(hasStockLines || additionalRows.length > 0) && (
         <ReadOnlyStockTable
           entries={voucher.stock_entries}
           variant={stockTableVariant}

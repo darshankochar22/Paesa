@@ -145,6 +145,9 @@ const buildPortalIndex = (importedRows) => {
         for (const inv of p.inv || []) {
           map.set(invMatchKey(p.ctin, inv.inum), {
             ctin: p.ctin,
+            // Supplier trade name as filed on the portal — the only name a portal-only
+            // document carries. Absent on payloads imported before it was captured.
+            trdnm: String(p.trdnm || p.lgnm || '').trim(),
             inum: inv.inum,
             section,
             // A vendor CREDIT note reduces the ITC the portal reports; a debit note adds.
@@ -274,6 +277,25 @@ const buildReconDetail = async (
     /* imports table missing → books-only view */
   }
 
+  // GSTIN → ledger name, for suppliers that appear ONLY on the portal (no book voucher
+  // in this period to borrow a name from) and for statements imported before the
+  // portal's trade name was captured. A ledger may still exist for such a supplier.
+  const ledgerNameByGstin = new Map();
+  try {
+    const nameRows = await db.all(
+      sql`SELECT gstin, name FROM ledgers
+          WHERE company_id = ${company_id} AND gstin IS NOT NULL AND gstin <> ''`,
+    );
+    for (const r of nameRows) {
+      const key = String(r.gstin || '')
+        .trim()
+        .toUpperCase();
+      if (key && !ledgerNameByGstin.has(key)) ledgerNameByGstin.set(key, r.name || '');
+    }
+  } catch {
+    /* no ledgers table → portal trade name only */
+  }
+
   const sections = {};
   const ensureSection = (key) =>
     (sections[key] ||= {
@@ -329,6 +351,16 @@ const buildReconDetail = async (
     return {
       doc_no: portal.inum,
       gstin: portal.ctin,
+      // Supplier name for the portal row — trade name as filed, else a books ledger with
+      // the same GSTIN. Lets an only-on-portal document name its supplier.
+      party_name:
+        portal.trdnm ||
+        ledgerNameByGstin.get(
+          String(portal.ctin || '')
+            .trim()
+            .toUpperCase(),
+        ) ||
+        '',
       doc_date: portal.idt || null,
       taxable: s * portal.totals.txval,
       igst: s * portal.totals.igst,
@@ -376,7 +408,11 @@ const buildReconDetail = async (
       String(v.party_gstin || '')
         .trim()
         .toUpperCase() || '(no GSTIN)';
-    const party = ensureParty(sec, gstinKey, v.ledger_name || v.party_name);
+    const party = ensureParty(
+      sec,
+      gstinKey,
+      v.ledger_name || v.party_name || portal?.trdnm || ledgerNameByGstin.get(gstinKey),
+    );
 
     const bs = bookSign(v);
     addBook(sec.books, v, bs);
@@ -405,7 +441,9 @@ const buildReconDetail = async (
       String(portal.ctin || '')
         .trim()
         .toUpperCase() || '(no GSTIN)';
-    const party = ensureParty(sec, ctinKey, '');
+    // Name a portal-only supplier from the portal's own trade name, falling back to a
+    // ledger with the same GSTIN — otherwise the row shows a bare GSTIN and is unusable.
+    const party = ensureParty(sec, ctinKey, portal.trdnm || ledgerNameByGstin.get(ctinKey) || '');
     addPortal(sec.portal, portal.totals, portal.sign);
     addPortal(party.portal, portal.totals, portal.sign);
     party.counts.only_portal++;

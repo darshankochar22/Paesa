@@ -383,6 +383,76 @@ describe('recon detail drill (2A dual comparison)', () => {
     });
   });
 
+  it("names a portal-only supplier from the portal's filed trade name", async () => {
+    const fresh = await seedGstReportsCompany();
+    // 29QQQQQ7777Q1Z5 has no ledger and no book voucher — the statement's trdnm is the
+    // only name this supplier has. Without it the row shows a bare GSTIN.
+    await reconciliationService.importGSTR2A(fresh.companyId, fresh.fyId, '042026', {
+      b2b: [
+        {
+          ctin: '29QQQQQ7777Q1Z5',
+          trdnm: 'Unknown Traders Pvt Ltd',
+          inv: [
+            {
+              inum: 'PONLY-1',
+              val: 1180,
+              itms: [{ itm_det: { txval: 1000, iamt: 0, camt: 90, samt: 90 } }],
+            },
+          ],
+        },
+      ],
+    });
+
+    const parties = await reconciliationService.getReconPartySummary(
+      fresh.companyId,
+      fresh.fyId,
+      '2A',
+      'b2b',
+    );
+    const p = parties.payload.parties.find((x) => x.gstin === '29QQQQQ7777Q1Z5');
+    expect(p.party_name).toBe('Unknown Traders Pvt Ltd');
+
+    const reg = await reconciliationService.getReconVoucherRegister(
+      fresh.companyId,
+      fresh.fyId,
+      '2A',
+      'b2b',
+      '29QQQQQ7777Q1Z5',
+    );
+    expect(reg.payload.party_name).toBe('Unknown Traders Pvt Ltd');
+    expect(reg.payload.groups.only_portal[0].portal.party_name).toBe('Unknown Traders Pvt Ltd');
+  });
+
+  it('falls back to a books ledger with the same GSTIN when the portal filed no name', async () => {
+    const fresh = await seedGstReportsCompany();
+    // No trdnm on the statement, but the seeded supplier ledger carries this GSTIN, so
+    // the portal-only document can still be attributed to "GST Supplier".
+    await reconciliationService.importGSTR2A(fresh.companyId, fresh.fyId, '052026', {
+      b2b: [
+        {
+          ctin: '29ABCDE1234F1Z5',
+          inv: [
+            {
+              inum: 'NONAME-1',
+              val: 1180,
+              itms: [{ itm_det: { txval: 1000, iamt: 0, camt: 90, samt: 90 } }],
+            },
+          ],
+        },
+      ],
+    });
+    const parties = await reconciliationService.getReconPartySummary(
+      fresh.companyId,
+      fresh.fyId,
+      '2A',
+      'b2b',
+      null,
+      '052026',
+    );
+    const p = parties.payload.parties.find((x) => x.gstin === '29ABCDE1234F1Z5');
+    expect(p.party_name).toBe('GST Supplier');
+  });
+
   it('books-only when no portal imported: everything reads as one-sided, not crash', async () => {
     const fresh = await seedGstReportsCompany();
     const res = await reconciliationService.getReconSummary(fresh.companyId, fresh.fyId, '2A');

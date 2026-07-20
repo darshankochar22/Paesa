@@ -82,7 +82,7 @@ export default function ReconVoucherRegister() {
   const section: string = location.state?.section || 'b2b';
   const sectionLabel: string = location.state?.sectionLabel || 'B2B Invoices';
   const gstin: string = location.state?.gstin || '';
-  const partyName: string = location.state?.partyName || '';
+  const [partyName, setPartyName] = useState<string>(location.state?.partyName || '');
   const registration = location.state?.registration || null;
   // MMYYYY carried down from the recon screen's period selector; null = whole FY.
   const returnPeriod: string | null = location.state?.returnPeriod ?? null;
@@ -109,6 +109,10 @@ export default function ReconVoucherRegister() {
       if (res.success) {
         setGroups(res.payload.groups);
         setPeriodLabel(res.payload.period_label || '');
+        // The server resolves the supplier's name (books ledger → portal trade name);
+        // trust it over whatever the drill carried in, which is blank for a party first
+        // seen on the portal.
+        if (res.payload.party_name) setPartyName(res.payload.party_name);
       } else setError(res.error || 'Failed to load voucher register');
     } catch (e: any) {
       setError(e.message || 'Unknown error');
@@ -149,7 +153,10 @@ export default function ReconVoucherRegister() {
         <TableRow key={`${group}-${i}-p`} className={cn('border-0', ROW_HOVER, PORTAL_ROW)}>
           <TableCell className="px-2 py-0.5">{p.book ? '' : p.portal.doc_date}</TableCell>
           <TableCell className="px-2 py-0.5">
-            {p.book ? portalTag(kind) : partyName}
+            {/* Paired row: the book row above already names the party, so this one just
+                tags the source. Portal-only row: name the supplier from the portal's
+                filed trade name, else the party this register was drilled into. */}
+            {p.book ? portalTag(kind) : p.portal.party_name || partyName || gstin}
             {/* ITC ineligibility is the single most consequential thing GSTR-2B says
                 about a document — flag it by weight, not colour, per the B/W theme. */}
             {p.portal.itc_available === 'N' && (
@@ -190,7 +197,7 @@ export default function ReconVoucherRegister() {
         <div className="flex gap-4">
           <span className="w-20">Vouchers of</span>
           <span className="font-bold">
-            : {partyName} {gstin && `(${gstin})`}
+            : {partyName || gstin} {partyName && gstin && `(${gstin})`}
           </span>
         </div>
       }
