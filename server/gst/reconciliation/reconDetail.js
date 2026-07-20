@@ -29,6 +29,22 @@ const { invMatchKey, invTailKey, portalInvoiceTotals, withinTolerance } = _recon
 // recorded, else our own voucher number.
 const bookDocNo = (v) => v.reference_number || v.voucher_number;
 
+// Sign + provenance for one portal document. Only notes carry a direction; an invoice
+// is always positive. See the call site for why an unknown note direction is treated as
+// a reversal rather than left positive.
+const noteDirection = (section, ntty) => {
+  if (section !== 'cdn') return { sign: 1, note_type_assumed: false };
+  const t = String(ntty || '').toUpperCase();
+  if (t === 'C') return { sign: -1, note_type_assumed: false };
+  if (t === 'D') return { sign: 1, note_type_assumed: false };
+  return { sign: -1, note_type_assumed: true };
+};
+
+// Books-side direction. The codebase convention is Credit Note = outward, Debit Note =
+// inward, so on the PURCHASE side a Debit Note is the purchase return and reduces ITC —
+// mirroring the portal's credit note for the same event.
+const bookSign = (v) => (v.voucher_type === 'Debit Note' ? -1 : 1);
+
 // Secondary index for the trailing-digits fallback. A key claimed by more than one
 // portal document is poisoned to AMBIGUOUS so it can never pair.
 const AMBIGUOUS = Symbol('ambiguous');
@@ -47,7 +63,22 @@ const buildTailIndex = (portalMap) => {
 const bookSection = (v) =>
   v.voucher_type === 'Credit Note' || v.voucher_type === 'Debit Note' ? 'cdn' : 'b2b';
 
-const SECTION_LABELS = { b2b: 'B2B Invoices', cdn: 'Credit/Debit Notes' };
+const SECTION_LABELS = {
+  b2b: 'B2B Invoices',
+  cdn: 'Credit/Debit Notes',
+  // GSTR-2B splits the same documents by whether their ITC may be claimed, so the
+  // ineligible ones get their own sections rather than inflating the available total.
+  u_b2b: 'B2B Invoices (ITC Unavailable)',
+  u_cdn: 'Credit/Debit Notes (ITC Unavailable)',
+};
+
+// GSTR-2B routes a document to the ITC-unavailable sections when the portal says the
+// credit cannot be claimed (itcavl 'N'). GSTR-2A has no eligibility concept, so it
+// always uses the plain sections. A book voucher follows the portal document it matched.
+const itcSection = (kind, section, portal) =>
+  kind === '2B' && portal && String(portal.itcavl || '').toUpperCase() === 'N'
+    ? `u_${section}`
+    : section;
 
 const KIND_CLASSIFIER = { '2A': 'GSTR2A', '2B': 'GSTR2B' };
 
@@ -61,16 +92,19 @@ const zero = () => ({
   tax: 0,
   invoice: 0,
 });
-const addBook = (acc, v) => {
+// `sign` is -1 for a purchase return, which REDUCES the books-side ITC — the mirror of
+// the supplier's credit note on the portal side.
+const addBook = (acc, v, sign = 1) => {
   acc.count++;
-  acc.taxable += Number(v.taxable) || 0;
-  acc.igst += Number(v.igst) || 0;
-  acc.cgst += Number(v.cgst) || 0;
-  acc.sgst += Number(v.sgst) || 0;
-  acc.cess += Number(v.cess) || 0;
+  acc.taxable += sign * (Number(v.taxable) || 0);
+  acc.igst += sign * (Number(v.igst) || 0);
+  acc.cgst += sign * (Number(v.cgst) || 0);
+  acc.sgst += sign * (Number(v.sgst) || 0);
+  acc.cess += sign * (Number(v.cess) || 0);
   acc.tax +=
-    (Number(v.igst) || 0) + (Number(v.cgst) || 0) + (Number(v.sgst) || 0) + (Number(v.cess) || 0);
-  acc.invoice += invoiceOf(v);
+    sign *
+    ((Number(v.igst) || 0) + (Number(v.cgst) || 0) + (Number(v.sgst) || 0) + (Number(v.cess) || 0));
+  acc.invoice += sign * invoiceOf(v);
 };
 // `sign` is -1 for a vendor credit note, which REDUCES the portal-side totals.
 const addPortal = (acc, t, sign = 1) => {
@@ -116,7 +150,13 @@ const buildPortalIndex = (importedRows) => {
             // A vendor CREDIT note reduces the ITC the portal reports; a debit note adds.
             // Totals stay positive so matching compares magnitudes — the sign is applied
             // when aggregating into the section/party columns.
-            sign: String(inv.ntty || '').toUpperCase() === 'C' ? -1 : 1,
+            //
+            // Direction unknown (2B payloads have arrived without any note-type key) is
+            // treated as a REVERSAL: understating available ITC is the safe error, since
+            // the opposite guess inflates credit the taxpayer may not actually claim.
+            // `note_type_assumed` marks it so an inferred direction is never passed off
+            // as one the portal stated.
+            ...noteDirection(section, inv.ntty),
             idt: inv.idt || null,
             itcavl: inv.itcavl ?? null,
             rsn: inv.rsn ?? null,
@@ -305,6 +345,8 @@ const buildReconDetail = async (
       // is an abbreviation of the portal's. Surfaced so a user can see the join was
       // inferred rather than exact.
       matched_on: portal.matchedOn || null,
+      // True when the portal gave no note type and the reversal direction was inferred.
+      note_type_assumed: !!portal.note_type_assumed,
     };
   };
 
@@ -320,12 +362,6 @@ const buildReconDetail = async (
       continue;
     }
 
-    const sec = ensureSection(bookSection(v));
-    const gstinKey =
-      String(v.party_gstin || '')
-        .trim()
-        .toUpperCase() || '(no GSTIN)';
-    const party = ensureParty(sec, gstinKey, v.ledger_name || v.party_name);
     const { status, portal } = voucherStatus(
       v,
       portalMap,
@@ -333,9 +369,18 @@ const buildReconDetail = async (
       tailIdx,
       booksTailCount,
     );
+    // Section is decided AFTER matching: on GSTR-2B an ITC-ineligible portal document
+    // pulls its book voucher into the ITC-unavailable block alongside it.
+    const sec = ensureSection(itcSection(kind, bookSection(v), portal));
+    const gstinKey =
+      String(v.party_gstin || '')
+        .trim()
+        .toUpperCase() || '(no GSTIN)';
+    const party = ensureParty(sec, gstinKey, v.ledger_name || v.party_name);
 
-    addBook(sec.books, v);
-    addBook(party.books, v);
+    const bs = bookSign(v);
+    addBook(sec.books, v, bs);
+    addBook(party.books, v, bs);
     // A portal invoice is added to the aggregates ONCE, even if two book documents share
     // its normalized number — otherwise the portal totals double-count.
     if (portal && !portal.counted) {
@@ -355,7 +400,7 @@ const buildReconDetail = async (
   // Portal invoices no book document matched → "Available Only on Portal".
   for (const portal of portalMap.values()) {
     if (portal.matched) continue;
-    const sec = ensureSection(portal.section);
+    const sec = ensureSection(itcSection(kind, portal.section, portal));
     const ctinKey =
       String(portal.ctin || '')
         .trim()
@@ -455,20 +500,22 @@ const buildReturnView = (d, kind) => {
   }
 
   // GSTR-2B — Input Tax Credit Available / Unavailable, Part A/Part B.
+  // No row-level sign here: purchase returns are already negative at the DOCUMENT level
+  // (portal credit notes via noteDirection, book Debit Notes via bookSign). Applying -1
+  // again would flip them back and make a reversal ADD to the available credit.
   const avail = [
     dataRow('b2b', 'All other ITC from Registered Persons (Excluding Reverse Charge)', 'b2b'),
     dataRow('isd', 'Inward Supplies from ISD'),
     dataRow('rcm', 'Inward Supplies Liable for Reverse Charge'),
     dataRow('import', 'Import of Goods'),
-    // Purchase returns REVERSE ITC — they net off the available total, never add to it.
-    dataRow('reversal', 'Reversal of Available ITC (Purchase Return) - Part B', 'cdn', -1),
+    dataRow('reversal', 'Reversal of Available ITC (Purchase Return) - Part B', 'cdn'),
     dataRow('others', 'Others'),
   ];
   const unavail = [
-    dataRow('u_other', 'All other ITC from Registered Persons (Excluding Reverse Charge)'),
+    dataRow('u_other', 'All other ITC from Registered Persons (Excluding Reverse Charge)', 'u_b2b'),
     dataRow('u_isd', 'Inward Supplies from ISD'),
     dataRow('u_rcm', 'Inward Supplies Liable for Reverse Charge'),
-    dataRow('u_reversal', 'Reversal of Unavailable ITC (Purchase Return) - Part B', null, -1),
+    dataRow('u_reversal', 'Reversal of Unavailable ITC (Purchase Return) - Part B', 'u_cdn'),
     dataRow('u_others', 'Others'),
   ];
   const availTotal = sumRows(avail);

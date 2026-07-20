@@ -43,7 +43,15 @@ interface Pair {
   book: VchSide | null;
   // GSTR-2B additionally states whether the ITC on a document may be claimed
   // (`itc_available` 'N' = not available) and the portal's reason code.
-  portal: (VchSide & { gstin?: string; itc_available?: string; itc_reason?: string }) | null;
+  portal:
+    | (VchSide & {
+        gstin?: string;
+        itc_available?: string;
+        itc_reason?: string;
+        // The portal gave no note type, so the reversal direction was inferred.
+        note_type_assumed?: boolean;
+      })
+    | null;
 }
 interface Groups {
   mismatch: Pair[];
@@ -148,6 +156,11 @@ export default function ReconVoucherRegister() {
               <span className="ml-2 font-bold not-italic">
                 ITC not available{p.portal.itc_reason ? ` (${p.portal.itc_reason})` : ''}
               </span>
+            )}
+            {/* The portal stated no note type, so credit-vs-debit was inferred. Say so
+                rather than presenting the direction as fact. */}
+            {p.portal.note_type_assumed && (
+              <span className="ml-2 not-italic">(note direction assumed)</span>
             )}
           </TableCell>
           <TableCell className="px-2 py-0.5" />

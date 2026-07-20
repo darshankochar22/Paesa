@@ -212,7 +212,8 @@ describe('recon detail drill (2A dual comparison)', () => {
       fresh.companyId,
       fresh.fyId,
       '2B',
-      'b2b',
+      // ITC-ineligible documents live in the ITC-unavailable section, not plain b2b.
+      'u_b2b',
       '29ABCDE1234F1Z5',
     );
     expect(res.success).toBe(true);
@@ -293,6 +294,93 @@ describe('recon detail drill (2A dual comparison)', () => {
       '29ABCDE1234F1Z5',
     );
     expect(res.payload.groups.reconciled[0].portal.matched_on).toBe('number');
+  });
+
+  describe('GSTR-2B ITC availability', () => {
+    const itms = [{ itm_det: { txval: 1000, iamt: 180, camt: 0, samt: 0 } }];
+    const rowsOf = (payload) => {
+      const byKey = {};
+      for (const r of payload.return_view) if (r.key) byKey[r.key] = r;
+      return byKey;
+    };
+
+    it('routes an ITC-ineligible document to Unavailable, not Available', async () => {
+      const fresh = await seedGstReportsCompany();
+      await reconciliationService.importGSTR2B(fresh.companyId, fresh.fyId, '042026', {
+        b2b: [
+          {
+            ctin: '29AAAAA1111A1Z5',
+            inv: [{ inum: 'OK-1', val: 1180, itcavl: 'Y', itms }],
+          },
+          {
+            ctin: '29BBBBB2222B1Z5',
+            // POS and buyer state differ — the portal says this credit cannot be claimed.
+            inv: [{ inum: 'NO-1', val: 1180, itcavl: 'N', rsn: 'P', itms }],
+          },
+        ],
+      });
+      const res = await reconciliationService.getReconSummary(fresh.companyId, fresh.fyId, '2B');
+      const r = rowsOf(res.payload);
+      expect(r.b2b.portal.taxable).toBeCloseTo(1000, 2);
+      // The ineligible one must NOT inflate claimable ITC.
+      expect(r.u_b2b.portal.taxable).toBeCloseTo(1000, 2);
+      expect(r.u_b2b.portal.tax).toBeCloseTo(180, 2);
+    });
+
+    it('a purchase-return note REDUCES net available ITC (no double negation)', async () => {
+      const fresh = await seedGstReportsCompany();
+      await reconciliationService.importGSTR2B(fresh.companyId, fresh.fyId, '042026', {
+        b2b: [{ ctin: '29AAAAA1111A1Z5', inv: [{ inum: 'OK-1', val: 1180, itcavl: 'Y', itms }] }],
+        cdnr: [
+          {
+            ctin: '29AAAAA1111A1Z5',
+            nt: [{ ntnum: 'CN-1', ntty: 'C', val: 590, itcavl: 'Y', itms }],
+          },
+        ],
+      });
+      const res = await reconciliationService.getReconSummary(fresh.companyId, fresh.fyId, '2B');
+      const r = rowsOf(res.payload);
+      // Reversal row is negative...
+      expect(r.cdn.portal.taxable).toBeCloseTo(-1000, 2);
+      // ...and the subtotal SUBTRACTS it. Signing at both the document and the row level
+      // (the old behaviour) turned the reversal back into an addition.
+      const net = res.payload.return_view.find((x) => x.label === 'Net ITC Available');
+      expect(net.portal.taxable).toBeCloseTo(0, 2);
+    });
+
+    it('treats an unknown note direction as a reversal and marks it assumed', async () => {
+      const fresh = await seedGstReportsCompany();
+      await reconciliationService.importGSTR2B(fresh.companyId, fresh.fyId, '042026', {
+        // Real Sandbox 2B notes have arrived with no note-type key at all. Guessing
+        // "debit" would overstate claimable ITC, so the safe direction is a reversal.
+        cdnr: [{ ctin: '29AAAAA1111A1Z5', nt: [{ ntnum: 'CN-2', val: 590, itms }] }],
+      });
+      const res = await reconciliationService.getReconSummary(fresh.companyId, fresh.fyId, '2B');
+      expect(rowsOf(res.payload).cdn.portal.taxable).toBeCloseTo(-1000, 2);
+
+      const reg = await reconciliationService.getReconVoucherRegister(
+        fresh.companyId,
+        fresh.fyId,
+        '2B',
+        'cdn',
+        '29AAAAA1111A1Z5',
+      );
+      expect(reg.payload.groups.only_portal[0].portal.note_type_assumed).toBe(true);
+    });
+
+    it('an explicit debit note keeps its positive direction', async () => {
+      const fresh = await seedGstReportsCompany();
+      await reconciliationService.importGSTR2B(fresh.companyId, fresh.fyId, '042026', {
+        cdnr: [
+          {
+            ctin: '29AAAAA1111A1Z5',
+            nt: [{ ntnum: 'DN-1', ntty: 'D', val: 590, itms }],
+          },
+        ],
+      });
+      const res = await reconciliationService.getReconSummary(fresh.companyId, fresh.fyId, '2B');
+      expect(rowsOf(res.payload).cdn.portal.taxable).toBeCloseTo(1000, 2);
+    });
   });
 
   it('books-only when no portal imported: everything reads as one-sided, not crash', async () => {

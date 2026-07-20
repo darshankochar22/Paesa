@@ -43,9 +43,15 @@ const normDoc = (doc = {}) => {
   // only when it actually carries them, so a bare {inum,val} document (no tax anywhere) keeps an
   // empty item list and still matches on invoice value rather than a spurious zero-taxable line.
   const items = rawItems && rawItems.length ? rawItems : hasInlineTax(doc) ? [doc] : [];
-  // ntty is the note type: 'C' credit / 'D' debit. A vendor CREDIT note REDUCES the ITC the
-  // portal shows, so losing this flag makes credit notes inflate the portal side.
-  const ntty = String(doc.ntty ?? doc.nt_typ ?? doc.note_type ?? '')
+  // Note type: 'C' credit / 'D' debit. A vendor CREDIT note REDUCES the ITC the portal
+  // shows, so losing this flag makes credit notes inflate the portal side.
+  // GSTR-1/2A spell it `ntty`; GSTR-2B's CDN records use a different key, and real
+  // Sandbox 2B payloads arrived with none of the 2A spellings — hence the wide net.
+  // Anything unrecognised is left ABSENT rather than defaulted, so the reader can treat
+  // an unknown direction as unknown instead of silently assuming "debit".
+  const ntty = String(
+    doc.ntty ?? doc.nt_typ ?? doc.nttyp ?? doc.typ ?? doc.note_type ?? doc.ntt ?? '',
+  )
     .trim()
     .toUpperCase()
     .charAt(0);
