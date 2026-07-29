@@ -204,6 +204,15 @@ function register() {
     bankingController.getChequeRegisterInstruments,
   );
   ipcMain.handle('banking:markChequePrinted', bankingController.markChequePrinted);
+  ipcMain.handle('banking:importBankStatement', bankingController.importBankStatement);
+  ipcMain.handle('banking:getStatementImports', bankingController.getStatementImports);
+  ipcMain.handle('banking:getStatementImportLines', bankingController.getStatementImportLines);
+  ipcMain.handle('banking:updateStatementLine', bankingController.updateStatementLine);
+  ipcMain.handle(
+    'banking:createVouchersFromStatement',
+    bankingController.createVouchersFromStatement,
+  );
+  ipcMain.handle('banking:deleteStatementImport', bankingController.deleteStatementImport);
 
   ipcMain.handle('auditTrail:getAll', auditTrailController.getAll);
   ipcMain.handle('auditTrail:getByEntity', auditTrailController.getByEntity);

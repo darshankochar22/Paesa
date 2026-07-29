@@ -28,6 +28,7 @@ export const ROUTES = {
   BANKING_DEPOSIT_SLIP: '/utilities/banking/deposit-slip',
   BANKING_PAYMENT_ADVICE: '/utilities/banking/payment-advice',
   BANKING_RECONCILIATION: '/utilities/banking/reconciliation',
+  BANKING_STATEMENT_IMPORT: '/utilities/banking/statement-import',
   COPILOT: '/utilities/copilot',
 
   // Report top-level menus

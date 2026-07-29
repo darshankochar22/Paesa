@@ -37,6 +37,7 @@ const sections: MenuSection[] = [
       { label: 'Deposit Slip', route: '/utilities/banking/deposit-slip' },
       { label: 'Payment Advice', route: '/utilities/banking/payment-advice' },
       { label: 'Bank Reconciliation', route: '/utilities/banking/reconciliation' },
+      { label: 'Import Bank Statement', route: '/utilities/banking/statement-import' },
     ],
   },
 ];

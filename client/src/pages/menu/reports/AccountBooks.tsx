@@ -1,50 +1,48 @@
-import { Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useEscapeBack } from '@/hooks/useEscape';
+import { useMenuHotkeys, type MenuHotkeyItem } from '@/hooks/useMenuHotkeys';
+import { MenuHotkeyLabel } from '@/components/blocks/MenuHotkeyLabel';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/shadcn/card';
-import { Button } from '@/components/shadcn/button';
+import { cn } from '@/lib/utils';
 
 export default function AccountBooks() {
   useEscapeBack();
+  const navigate = useNavigate();
 
-  const sections = [
+  const sections: { title: string; items: MenuHotkeyItem[] }[] = [
+    // Hotkey letters are the mid-word capital (Tally convention, as in Gateway's
+    // "Day BooK"). They must be DISTINCT across the whole menu or two items fight
+    // over one key — hence BooK / VoucHers / PayMent / CredIt below.
     {
       title: 'SUMMARY',
-      items: ['Cash/Bank Book(s)', 'Ledger', 'Group Summary', 'Group Vouchers'],
+      items: [
+        { label: 'Cash/Bank BooK(s)', route: '/reports/accounts/cash-bank' },
+        { label: 'Ledger', route: '/reports/accounts/ledger-select' },
+        { label: 'Group Summary', route: '/reports/accounts/group-select' },
+        { label: 'Group VoucHers', route: '/reports/accounts/group-vouchers-select' },
+      ],
     },
     {
       title: 'REGISTERS',
       items: [
-        'Contra Register',
-        'Payment Register',
-        'Receipt Register',
-        'Sales Register',
-        'Purchase Register',
-        'Journal Register',
-        'Debit Note Register',
-        'Credit Note Register',
-        'Voucher Clarification',
+        { label: 'Contra Register', route: '/reports/accounts/contra-register' },
+        { label: 'PayMent Register', route: '/reports/accounts/payment-register' },
+        { label: 'Receipt Register', route: '/reports/accounts/receipt-register' },
+        { label: 'Sales Register', route: '/reports/accounts/sales-register' },
+        { label: 'Purchase Register', route: '/reports/accounts/purchase-register' },
+        { label: 'Journal Register', route: '/reports/accounts/journal-register' },
+        { label: 'Debit Note Register', route: '/reports/accounts/debit-note-register' },
+        { label: 'CredIt Note Register', route: '/reports/accounts/credit-note-register' },
+        { label: 'Voucher Clarification', route: '/reports/accounts/voucher-clarification' },
       ],
     },
   ];
 
-  const getRoute = (_section: string, item: string) => {
-    const routes: Record<string, string> = {
-      'Cash/Bank Book(s)': '/reports/accounts/cash-bank',
-      Ledger: '/reports/accounts/ledger-select',
-      'Group Summary': '/reports/accounts/group-select',
-      'Group Vouchers': '/reports/accounts/group-vouchers-select',
-      'Contra Register': '/reports/accounts/contra-register',
-      'Payment Register': '/reports/accounts/payment-register',
-      'Receipt Register': '/reports/accounts/receipt-register',
-      'Sales Register': '/reports/accounts/sales-register',
-      'Purchase Register': '/reports/accounts/purchase-register',
-      'Journal Register': '/reports/accounts/journal-register',
-      'Debit Note Register': '/reports/accounts/debit-note-register',
-      'Credit Note Register': '/reports/accounts/credit-note-register',
-      'Voucher Clarification': '/reports/accounts/voucher-clarification',
-    };
-    return routes[item] ?? null;
-  };
+  // Flat list in visual order — the hook walks it for arrows and letter hotkeys.
+  const flat = sections.flatMap((s) => s.items);
+  const { selected, setSelected, activate } = useMenuHotkeys(flat, {
+    onBack: () => navigate(-1),
+  });
 
   return (
     <Card size="sm" className="w-96 mx-auto mt-10 text-xs">
@@ -62,34 +60,26 @@ export default function AccountBooks() {
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {sections.map((section) => (
-          <div key={section.title || 'misc'} className="flex flex-col gap-1.5">
-            {section.title && (
-              <div className="text-[10px] font-bold uppercase tracking-wider text-black px-1">
-                {section.title}
-              </div>
-            )}
+          <div key={section.title} className="flex flex-col gap-1.5">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-black px-1">
+              {section.title}
+            </div>
             <div className="flex flex-col pl-3 gap-0.5">
               {section.items.map((item) => {
-                const route = getRoute(section.title, item);
-                return route ? (
-                  <Button
-                    key={item}
-                    asChild
-                    variant="ghost"
-                    size="xs"
-                    className="justify-start text-[11px] font-normal px-2 h-7 text-black"
+                const idx = flat.indexOf(item);
+                return (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onMouseEnter={() => setSelected(idx)}
+                    onClick={() => activate(item)}
+                    className={cn(
+                      'text-left text-[11px] font-normal px-2 h-7 rounded-sm text-black',
+                      idx === selected ? 'bg-black/[0.06]' : 'hover:bg-black/[0.04]',
+                    )}
                   >
-                    <Link to={route}>{item}</Link>
-                  </Button>
-                ) : (
-                  <Button
-                    key={item}
-                    variant="ghost"
-                    size="xs"
-                    className="justify-start text-[11px] font-normal px-2 h-7 text-black"
-                  >
-                    {item}
-                  </Button>
+                    <MenuHotkeyLabel label={item.label} />
+                  </button>
                 );
               })}
             </div>

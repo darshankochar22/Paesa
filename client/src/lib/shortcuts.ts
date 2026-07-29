@@ -104,8 +104,14 @@ export function normalizeCombo(spec: string): string {
 }
 
 function comboFromEvent(e: KeyboardEvent): string | null {
-  const k = e.key;
+  let k = e.key;
   if (!k || k === 'Control' || k === 'Alt' || k === 'Shift' || k === 'Meta') return null;
+  // macOS: Option+letter produces a special character ('∂' for Option+D), so an
+  // "Alt+D" binding would never match on e.key — recover the letter from e.code.
+  if (e.altKey && k.length === 1 && !/^[\x20-\x7e]$/.test(k)) {
+    const m = e.code.match(/^(?:Key([A-Z])|Digit(\d))$/);
+    if (m) k = m[1] || m[2];
+  }
   return (
     (e.ctrlKey ? 'ctrl+' : '') +
     (e.altKey ? 'alt+' : '') +

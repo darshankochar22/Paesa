@@ -548,11 +548,13 @@ export default function Vouchers() {
         modes: ['Double Entry', 'Single Entry'],
         current: currentEntryMode === 'double' ? 'Double Entry' : 'Single Entry',
       }
-    : ['Sales', 'Purchase', 'Credit Note', 'Debit Note'].includes(effectiveVoucherType) &&
-        isFeatureEnabled(features, 'maintain_inventory')
+    : ['Sales', 'Purchase', 'Credit Note', 'Debit Note'].includes(effectiveVoucherType)
       ? {
+          // Item Invoice needs inventory (it has a stock grid); Accounting Invoice and
+          // As Voucher do NOT — a service business with inventory off still bills that
+          // way, and TallyPrime always offers them. Only gate the item mode.
           modes: [
-            'Item Invoice',
+            ...(isFeatureEnabled(features, 'maintain_inventory') ? ['Item Invoice'] : []),
             'Accounting Invoice',
             'As Voucher',
             'Excise Invoice',

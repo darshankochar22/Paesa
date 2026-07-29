@@ -543,6 +543,14 @@ contextBridge.exposeInMainWorld('api', {
       }),
     markChequePrinted: (bank_detail_ids, printed) =>
       invoke('banking:markChequePrinted', { bank_detail_ids, printed }),
+    importBankStatement: (data) => invoke('banking:importBankStatement', data),
+    getStatementImports: (company_id) => invoke('banking:getStatementImports', { company_id }),
+    getStatementImportLines: (company_id, import_id) =>
+      invoke('banking:getStatementImportLines', { company_id, import_id }),
+    updateStatementLine: (data) => invoke('banking:updateStatementLine', data),
+    createVouchersFromStatement: (data) => invoke('banking:createVouchersFromStatement', data),
+    deleteStatementImport: (company_id, import_id) =>
+      invoke('banking:deleteStatementImport', { company_id, import_id }),
   },
   auditTrail: {
     getAll: (company_id, limit) => invoke('auditTrail:getAll', { company_id, limit }),
