@@ -38,9 +38,11 @@ export default function CreditNoteVoucher({
   const vatEnabled = isTaxFeatureEnabled(features, 'vat');
   // F11 "Enable GST" — hide GST-details / GST-e-Way / e-Invoice rows when off.
   const gstEnabled = isTaxFeatureEnabled(features, 'gst');
-  // F11 "Enable multiple Price Levels" — show the Price Level selector only when on.
-  const hasPriceLevels =
-    isFeatureEnabled(features, 'enable_multiple_price_levels') && form.allPriceLevels.length > 0;
+  // F11 "Enable multiple Price Levels" — show the Price Level selector whenever the
+  // feature is on. Tally shows the prompt even before any price levels are defined
+  // (you pick "Not Applicable"); gating on allPriceLevels.length made the field
+  // vanish for companies that enabled the feature but hadn't created levels yet.
+  const hasPriceLevels = isFeatureEnabled(features, 'enable_multiple_price_levels');
 
   // Accounting Invoice mode (Ctrl+H / forced when F11 maintain_inventory is off): no
   // stock grid — pick ledgers with typed amounts. Party stays at top; the Ledger-account

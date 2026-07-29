@@ -23,7 +23,12 @@ export function useVoucherAcceptFlow(
       // created for the party ledger, so a bill reference would be orphaned).
       billWiseEnabled &&
       ['Sales', 'Purchase', 'Credit Note', 'Debit Note'].includes(effectiveVoucherType) &&
-      form.partyLedger?.is_bill_wise === 1 &&
+      // A Sundry Debtor/Creditor party is bill-wise by default (Tally: "Maintain
+      // balances bill-by-bill" defaults to Yes for parties), so the popup must open
+      // even when its per-ledger flag is off — otherwise a purchase/sale never
+      // records a New Ref and the party's bills never show on later Agst Ref
+      // allocation. Matches the particulars flow (useAmountConfirmFlow).
+      (form.checkIsParty(form.partyLedger) || form.partyLedger?.is_bill_wise === 1) &&
       form.partyBillReferences.length === 0
     ) {
       // Credit Note (sales return) credits the customer → "Cr"; Debit Note
@@ -154,6 +159,7 @@ export function useVoucherAcceptFlow(
     form.handleSubmit,
     form.setActiveAllocation,
     form.checkIsBank,
+    form.checkIsParty,
     form.bankDetails,
     billWiseEnabled,
   ]);

@@ -323,10 +323,11 @@ export default function SalesVoucher({
   // Uses the tax helper (respects the load-until-enabled convention), not raw flag.
   const gstEnabled = isTaxFeatureEnabled(features, 'gst');
 
-  // Price Level is a keyboard stop only when F11 "Enable multiple Price Levels"
-  // is on AND the company actually defines price levels (Tally hides it otherwise).
-  const hasPriceLevels =
-    isFeatureEnabled(features, 'enable_multiple_price_levels') && form.allPriceLevels.length > 0;
+  // Price Level shows whenever F11 "Enable multiple Price Levels" is on. Tally
+  // shows the prompt even before any levels are defined (pick "Not Applicable"),
+  // so don't gate on allPriceLevels.length — that made the selector vanish for
+  // companies that enabled the feature but hadn't created any levels yet.
+  const hasPriceLevels = isFeatureEnabled(features, 'enable_multiple_price_levels');
 
   // Accounting Invoice mode (Ctrl+H / forced when F11 maintain_inventory is off): no
   // stock grid — pick ledgers with typed amounts. Party stays at top; the Sales-ledger

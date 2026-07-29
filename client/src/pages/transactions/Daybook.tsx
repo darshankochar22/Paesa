@@ -15,6 +15,7 @@ import {
 import { EmptyState } from '@/components/blocks/EmptyState';
 import { cn } from '@/lib/utils';
 import { todayLocalISO } from '@/lib/date';
+import TallyDateInput from './components/TallyDateInput';
 
 const todayISO = todayLocalISO;
 
@@ -140,25 +141,26 @@ function ChangeDatePopup({
   onClose: () => void;
 }) {
   const [value, setValue] = useState(currentDate);
-  const ref = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    ref.current?.focus();
-  }, []);
+  // TallyDateInput commits on Enter/blur via an async setState, so a button
+  // click or Enter reading `value` from this render's closure would lag by one
+  // commit. Mirror the committed ISO into a ref (updated synchronously) and
+  // confirm from that.
+  const latest = useRef(currentDate);
+  const set = (iso: string) => {
+    latest.current = iso;
+    setValue(iso);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
       <div className="bg-white border border-gray-400 shadow-xl w-64">
-        <div className="bg-blue-700 text-white text-sm font-semibold px-3 py-1">Change Date</div>
+        <div className="bg-black text-white text-sm font-semibold px-3 py-1">Change Date</div>
         <div className="px-4 py-4 flex flex-col gap-3">
-          <input
-            ref={ref}
-            type="date"
+          <TallyDateInput
             value={value}
-            onChange={(e) => setValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') onConfirm(value);
-              if (e.key === 'Escape') onClose();
-            }}
+            onChange={set}
+            autoFocus
+            onEnter={() => onConfirm(latest.current)}
             className="w-full border border-gray-400 px-2 py-1 text-sm outline-none focus:border-black"
           />
           <div className="flex justify-end gap-2">
@@ -169,7 +171,7 @@ function ChangeDatePopup({
               Cancel
             </button>
             <button
-              onClick={() => onConfirm(value)}
+              onClick={() => onConfirm(latest.current)}
               className="text-xs bg-black text-white px-3 py-1 hover:bg-gray-800"
             >
               Accept
@@ -194,41 +196,41 @@ function ChangePeriodPopup({
 }) {
   const [from, setFrom] = useState(fromDate);
   const [to, setTo] = useState(toDate);
-  const ref = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    ref.current?.focus();
-  }, []);
+  // See ChangeDatePopup: mirror committed ISO into refs so Enter/Accept use the
+  // freshest values, not this render's (pre-commit) closure.
+  const fromRef = useRef(fromDate);
+  const toRef = useRef(toDate);
+  const setFromV = (iso: string) => {
+    fromRef.current = iso;
+    setFrom(iso);
+  };
+  const setToV = (iso: string) => {
+    toRef.current = iso;
+    setTo(iso);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
       <div className="bg-white border border-gray-400 shadow-xl w-72">
-        <div className="bg-blue-700 text-white text-sm font-semibold px-3 py-1">Change Period</div>
+        <div className="bg-black text-white text-sm font-semibold px-3 py-1">Change Period</div>
         <div className="px-4 py-4 flex flex-col gap-3">
           <div className="flex items-center gap-3">
             <span className="text-sm w-10 shrink-0">From</span>
             <span className="text-sm">:</span>
-            <input
-              ref={ref}
-              type="date"
+            <TallyDateInput
               value={from}
-              onChange={(e) => setFrom(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') onClose();
-              }}
+              onChange={setFromV}
+              autoFocus
               className="flex-1 border border-gray-400 px-2 py-1 text-sm outline-none focus:border-black"
             />
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm w-10 shrink-0">To</span>
             <span className="text-sm">:</span>
-            <input
-              type="date"
+            <TallyDateInput
               value={to}
-              onChange={(e) => setTo(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') onConfirm(from, to);
-                if (e.key === 'Escape') onClose();
-              }}
+              onChange={setToV}
+              onEnter={() => onConfirm(fromRef.current, toRef.current)}
               className="flex-1 border border-gray-400 px-2 py-1 text-sm outline-none focus:border-black"
             />
           </div>
@@ -240,7 +242,7 @@ function ChangePeriodPopup({
               Cancel
             </button>
             <button
-              onClick={() => onConfirm(from, to)}
+              onClick={() => onConfirm(fromRef.current, toRef.current)}
               className="text-xs bg-black text-white px-3 py-1 hover:bg-gray-800"
             >
               Accept

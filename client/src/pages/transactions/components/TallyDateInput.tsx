@@ -15,6 +15,8 @@ interface Props {
   className?: string;
   /** Called on Enter after a successful commit — use to advance focus. */
   onEnter?: () => void;
+  /** Focus and enter edit mode on mount (e.g. when opened in a popup). */
+  autoFocus?: boolean;
 }
 
 export default function TallyDateInput({
@@ -24,6 +26,7 @@ export default function TallyDateInput({
   dataFieldType,
   className,
   onEnter,
+  autoFocus,
 }: Props) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState('');
@@ -37,6 +40,16 @@ export default function TallyDateInput({
   useEffect(() => {
     if (editing) ref.current?.select();
   }, [editing]);
+
+  // Popup usage: grab focus on mount so the field is immediately typable.
+  useEffect(() => {
+    if (autoFocus) {
+      setText(formatTallyDate(value));
+      setEditing(true);
+      ref.current?.focus();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const commit = (): boolean => {
     const iso = parseTallyDate(text, refIso ?? value);
