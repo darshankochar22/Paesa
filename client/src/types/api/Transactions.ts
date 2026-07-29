@@ -530,9 +530,7 @@ export interface VoucherAPI {
       total_unreconciled_count?: number;
       total_count?: number;
     }>;
-    getBankLedgers: (
-      company_id: number,
-    ) => Promise<{
+    getBankLedgers: (company_id: number) => Promise<{
       success: boolean;
       error?: string;
       ledgers: {
@@ -571,9 +569,7 @@ export interface VoucherAPI {
       bank_detail_ids: number[],
       printed?: boolean,
     ) => Promise<{ success: boolean; error?: string; updated?: number }>;
-    getPartyLedgers: (
-      company_id: number,
-    ) => Promise<{
+    getPartyLedgers: (company_id: number) => Promise<{
       success: boolean;
       error?: string;
       ledgers: { ledger_id: number; name: string; email: string }[];
@@ -703,7 +699,109 @@ export interface VoucherAPI {
         amount: number;
       }[];
     }>;
+    importBankStatement: (data: {
+      company_id: number;
+      ledger_id?: number | null;
+      file_name?: string | null;
+      content: string;
+    }) => Promise<{
+      success: boolean;
+      error?: string;
+      needs_ledger?: boolean;
+      account_number?: string | null;
+      rows_found?: number;
+      candidates?: { ledger_id: number; name: string }[];
+      import_id?: number;
+      ledger_id?: number;
+      ledger_name?: string;
+      matched_by?: 'account_number' | 'manual';
+      total?: number;
+      duplicates?: number;
+      suggested?: number;
+      skipped?: number;
+      warnings?: string[];
+    }>;
+    getStatementImports: (company_id: number) => Promise<{
+      success: boolean;
+      error?: string;
+      imports: BankStatementImportRow[];
+    }>;
+    getStatementImportLines: (
+      company_id: number,
+      import_id: number,
+    ) => Promise<{
+      success: boolean;
+      error?: string;
+      import?: BankStatementImportRow;
+      rows: BankStatementLineRow[];
+    }>;
+    updateStatementLine: (data: {
+      company_id: number;
+      line_id: number;
+      voucher_type?: string;
+      contra_ledger_id?: number | null;
+      status?: 'pending' | 'ignored';
+    }) => Promise<{ success: boolean; error?: string; line?: BankStatementLineRow }>;
+    createVouchersFromStatement: (data: {
+      company_id: number;
+      line_ids: number[];
+      auto_reconcile?: boolean;
+      include_duplicates?: boolean;
+    }) => Promise<{
+      success: boolean;
+      error?: string;
+      created?: number;
+      failed?: number;
+      results?: {
+        line_id: number;
+        success: boolean;
+        voucher_id?: number;
+        voucher_number?: string;
+        error?: string;
+      }[];
+    }>;
+    deleteStatementImport: (
+      company_id: number,
+      import_id: number,
+    ) => Promise<{ success: boolean; error?: string; removed?: number }>;
   };
+}
+
+export interface BankStatementImportRow {
+  import_id: number;
+  company_id: number;
+  ledger_id: number;
+  ledger_name?: string;
+  file_name?: string | null;
+  account_number?: string | null;
+  statement_from?: string | null;
+  statement_to?: string | null;
+  total_rows: number;
+  imported_at?: string;
+  pending_count?: number;
+  created_count?: number;
+  ignored_count?: number;
+  duplicate_count?: number;
+}
+
+export interface BankStatementLineRow {
+  line_id: number;
+  import_id: number;
+  company_id: number;
+  ledger_id: number;
+  txn_date: string;
+  narration?: string | null;
+  ref_no?: string | null;
+  withdrawal: number;
+  deposit: number;
+  balance?: number | null;
+  voucher_type?: string | null;
+  contra_ledger_id?: number | null;
+  contra_ledger_name?: string | null;
+  match_source?: string | null;
+  status: 'pending' | 'created' | 'ignored' | 'duplicate';
+  voucher_id?: number | null;
+  voucher_number?: string | null;
 }
 
 export interface ChequeRegisterCounts {

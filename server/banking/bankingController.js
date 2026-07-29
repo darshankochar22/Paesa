@@ -1,4 +1,5 @@
 const bankingService = require('../banking/bankingService');
+const bankStatementService = require('../banking/bankStatementService');
 
 module.exports = {
   getUnreconciled: async (event, { company_id, fy_id, ledger_id }) => {
@@ -104,5 +105,23 @@ module.exports = {
   },
   markChequePrinted: async (event, { bank_detail_ids, printed }) => {
     return await bankingService.markChequePrinted(bank_detail_ids, printed);
+  },
+  importBankStatement: async (event, data) => {
+    return await bankStatementService.importStatement(data);
+  },
+  getStatementImports: async (event, { company_id }) => {
+    return await bankStatementService.getImports(company_id);
+  },
+  getStatementImportLines: async (event, { company_id, import_id }) => {
+    return await bankStatementService.getImportLines(company_id, import_id);
+  },
+  updateStatementLine: async (event, data) => {
+    return await bankStatementService.updateLine(data);
+  },
+  createVouchersFromStatement: async (event, data) => {
+    return await bankStatementService.createVouchers(data);
+  },
+  deleteStatementImport: async (event, { company_id, import_id }) => {
+    return await bankStatementService.deleteImport({ company_id, import_id });
   },
 };

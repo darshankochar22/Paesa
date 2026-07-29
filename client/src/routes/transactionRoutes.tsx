@@ -12,6 +12,8 @@ import PostDatedSummary from '../pages/utilities/banking/PostDatedSummary';
 import DepositSlip from '../pages/utilities/banking/DepositSlip';
 import PaymentAdvice from '../pages/utilities/banking/PaymentAdvice';
 import BankReconciliation from '../pages/utilities/banking/BankReconciliation';
+import BankStatementImport from '../pages/utilities/banking/BankStatementImport';
+import BankStatementReview from '../pages/utilities/banking/BankStatementReview';
 import GenericDataView from '../pages/GenericDataView.tsx';
 import type { RouteConfig } from './types';
 
@@ -31,5 +33,7 @@ export const transactionRoutes: RouteConfig[] = [
   { path: '/utilities/banking/deposit-slip', element: <DepositSlip /> },
   { path: '/utilities/banking/payment-advice', element: <PaymentAdvice /> },
   { path: '/utilities/banking/reconciliation', element: <BankReconciliation /> },
+  { path: '/utilities/banking/statement-import', element: <BankStatementImport /> },
+  { path: '/utilities/banking/statement-import/:importId', element: <BankStatementReview /> },
   { path: '/data/:controller', element: <GenericDataView /> },
 ];
