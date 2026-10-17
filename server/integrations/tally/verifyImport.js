@@ -9,16 +9,20 @@
 'use strict';
 
 const { extractCompany } = require('./binExtract');
-const { adapt } = require('./binImportRunner');
+
+// binImportRunner requires this module at load time, so requiring it back here left
+// whichever of the two loaded second holding an empty export (F1). Resolve it per call.
+const adapt = (...args) => require('./binImportRunner').adapt(...args);
 
 const norm = (s) =>
   String(s == null ? '' : s)
     .trim()
     .toLowerCase();
 
-async function reconcile(db, folder, companyId) {
+// `extracted` lets a caller that already decoded the folder skip a second decode.
+async function reconcile(db, folder, companyId, extracted = null) {
   // ---- source (what SHOULD be imported) -----------------------------------
-  const { masters, vouchers } = extractCompany(folder);
+  const { masters, vouchers } = extracted || extractCompany(folder);
   const { parsed } = adapt(masters, { vouchers }, {});
 
   // A voucher is importable iff it has balanced accounting entries.

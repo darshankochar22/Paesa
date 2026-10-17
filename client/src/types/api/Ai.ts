@@ -1,9 +1,28 @@
+// One row of a proposal's server-built preview (rendered with StatGrid).
+export interface AiPreviewRow {
+  label: string;
+  value: string;
+  detail?: string;
+}
+
 export interface AiProposal {
   action: string;
   channel: string;
   args: Record<string, any>;
   summary: string;
+  // The model's own description, kept when the server builds the summary.
+  note?: string;
+  preview?: AiPreviewRow[];
   requiresApproval: boolean;
+}
+
+// One tool call the agent made while answering; drives the "Sources" line.
+export interface AiToolTraceEntry {
+  tool: string;
+  input: Record<string, any>;
+  ok: boolean;
+  error?: string;
+  ms: number;
 }
 
 // Non-secret status surfaced to the renderer. The API key is configured on the server
@@ -63,15 +82,18 @@ export interface AiAPI {
     getKeyStatus: () => Promise<AiStatus>;
     ask: (payload: {
       prompt: string;
-      context?: { company_id?: number; fy_id?: number };
+      // tally_folder: a TallyPrime folder from tally.pickFolder, read by the tally_* tools.
+      context?: { company_id?: number; fy_id?: number; tally_folder?: string };
       history?: { role: 'user' | 'assistant'; text: string }[];
     }) => Promise<{
       success: boolean;
       text?: string;
       error?: string;
+      model?: string;
       proposals?: AiProposal[];
       rounds?: number;
       capped?: boolean;
+      toolTrace?: AiToolTraceEntry[];
     }>;
     scanBillStatus: () => Promise<GeminiStatus>;
     scanBill: (payload: {

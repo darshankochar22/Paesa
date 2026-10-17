@@ -27,9 +27,9 @@ paths:
       operationId: tally.testConnection
       tags: [tally]
       summary: Probe a live Tally endpoint and report reachability + the open company name.
-      x-ipc-channel: "tally:testConnection"
-      x-window-api: "window.api.tally.testConnection"
-      x-controller: "tallyController.testConnection"
+      x-ipc-channel: 'tally:testConnection'
+      x-window-api: 'window.api.tally.testConnection'
+      x-controller: 'tallyController.testConnection'
       requestBody:
         required: false
         content:
@@ -37,8 +37,8 @@ paths:
             schema:
               type: object
               properties:
-                host: { type: string, description: "Tally host (default 127.0.0.1)." }
-                port: { type: number, description: "Tally port (default 9000)." }
+                host: { type: string, description: 'Tally host (default 127.0.0.1).' }
+                port: { type: number, description: 'Tally port (default 9000).' }
       responses:
         '200':
           description: Reachability result with the open company name when reachable.
@@ -50,9 +50,9 @@ paths:
       operationId: tally.preview
       tags: [tally]
       summary: Dry-run — count what would be imported (no DB writes). Accepts raw xml or a live endpoint.
-      x-ipc-channel: "tally:preview"
-      x-window-api: "window.api.tally.preview"
-      x-controller: "tallyController.preview"
+      x-ipc-channel: 'tally:preview'
+      x-window-api: 'window.api.tally.preview'
+      x-controller: 'tallyController.preview'
       requestBody:
         required: true
         content:
@@ -77,9 +77,9 @@ paths:
       operationId: tally.importMasters
       tags: [tally]
       summary: Import groups, units, ledgers and stock items into the active company.
-      x-ipc-channel: "tally:importMasters"
-      x-window-api: "window.api.tally.importMasters"
-      x-controller: "tallyController.importMasters"
+      x-ipc-channel: 'tally:importMasters'
+      x-window-api: 'window.api.tally.importMasters'
+      x-controller: 'tallyController.importMasters'
       requestBody:
         required: true
         content:
@@ -88,8 +88,16 @@ paths:
               allOf:
                 - type: object
                   properties:
-                    company_id: { type: number, description: "Active company id (injected into every payload)." }
-                    fy_id: { type: number, description: "Active financial year id (optional for masters)." }
+                    company_id:
+                      {
+                        type: number,
+                        description: 'Active company id (injected into every payload).',
+                      }
+                    fy_id:
+                      {
+                        type: number,
+                        description: 'Active financial year id (optional for masters).',
+                      }
                   required: [company_id]
                 - oneOf:
                     - $ref: '#/components/schemas/XmlParams'
@@ -113,9 +121,9 @@ paths:
       operationId: tally.importVouchers
       tags: [tally]
       summary: Import Day Book vouchers into the active company + financial year (Dr=Cr balance checked).
-      x-ipc-channel: "tally:importVouchers"
-      x-window-api: "window.api.tally.importVouchers"
-      x-controller: "tallyController.importVouchers"
+      x-ipc-channel: 'tally:importVouchers'
+      x-window-api: 'window.api.tally.importVouchers'
+      x-controller: 'tallyController.importVouchers'
       requestBody:
         required: true
         content:
@@ -124,8 +132,12 @@ paths:
               allOf:
                 - type: object
                   properties:
-                    company_id: { type: number, description: "Active company id." }
-                    fy_id: { type: number, description: "Active financial year id (required for vouchers)." }
+                    company_id: { type: number, description: 'Active company id.' }
+                    fy_id:
+                      {
+                        type: number,
+                        description: 'Active financial year id (required for vouchers).',
+                      }
                   required: [company_id, fy_id]
                 - oneOf:
                     - $ref: '#/components/schemas/XmlParams'
@@ -141,6 +153,26 @@ paths:
                   success: { type: boolean }
                   vouchers: { $ref: '#/components/schemas/ImportSummary' }
                   error: { type: string }
+  /tally/pickFolder:
+    post:
+      operationId: tally.pickFolder
+      tags: [tally]
+      summary: Choose a TallyPrime data folder (Manager.1800 and TranMgr.1800) in the OS folder dialog.
+      description: >
+        Only checks which folders hold the two .1800 files; nothing is decoded. A company
+        folder, or a folder holding exactly one company, is valid and comes back as dataDir.
+        A Tally Data folder holding several companies is not valid for the import screen;
+        candidates then lists the company folder names, and the Copilot can still attach the
+        folder and ask which company to review.
+      x-ipc-channel: 'tally:pickFolder'
+      x-window-api: 'window.api.tally.pickFolder'
+      x-controller: 'tallyController.pickTallyFolder'
+      responses:
+        '200':
+          description: The chosen folder, or success false with an error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FolderPickResult' }
 components:
   schemas:
     EndpointParams:
@@ -151,13 +183,13 @@ components:
         port: { type: number }
     XmlParams:
       type: object
-      description: "Raw Tally <ENVELOPE> XML response (parse-only; no live Tally needed)."
+      description: 'Raw Tally <ENVELOPE> XML response (parse-only; no live Tally needed).'
       properties:
         xml: { type: string }
       required: [xml]
     DateRangeParams:
       type: object
-      description: "A live endpoint plus an optional Day Book date range (YYYY-MM-DD)."
+      description: 'A live endpoint plus an optional Day Book date range (YYYY-MM-DD).'
       properties:
         host: { type: string }
         port: { type: number }
@@ -168,13 +200,13 @@ components:
       properties:
         success: { type: boolean }
         reachable: { type: boolean }
-        company: { type: [string, "null"] }
+        company: { type: [string, 'null'] }
         error: { type: string }
         code: { type: string }
         status: { type: number }
     ImportSummary:
       type: object
-      description: "Per-entity outcome from the importer."
+      description: 'Per-entity outcome from the importer.'
       properties:
         created: { type: number }
         skipped: { type: number }
@@ -184,14 +216,14 @@ components:
           items: { type: string }
     Preview:
       type: object
-      description: "Dry-run counts of what would be imported."
+      description: 'Dry-run counts of what would be imported.'
       properties:
         meta:
-          type: [object, "null"]
+          type: [object, 'null']
           properties:
             source: { type: string }
-            requestType: { type: [string, "null"] }
-            collectionType: { type: [string, "null"] }
+            requestType: { type: [string, 'null'] }
+            collectionType: { type: [string, 'null'] }
         groups: { type: number }
         units: { type: number }
         ledgers: { type: number }
@@ -199,3 +231,18 @@ components:
         vouchers: { type: number }
         balancedVouchers: { type: number }
         unbalancedVouchers: { type: number }
+    FolderPickResult:
+      type: object
+      properties:
+        success: { type: boolean }
+        canceled: { type: boolean }
+        folder: { type: string, description: The folder the user chose. }
+        dataDir:
+          type: [string, 'null']
+          description: The company folder holding the .1800 files, when there is exactly one.
+        valid: { type: boolean }
+        candidates:
+          type: array
+          items: { type: string }
+          description: Company folder names, when the chosen folder holds several companies.
+        error: { type: [string, 'null'] }
