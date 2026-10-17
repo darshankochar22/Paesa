@@ -3,124 +3,53 @@ info:
   title: AI Copilot Module API
   version: 1.0.0
   description: >
-    IPC API for the AI copilot ("Cursor for Tally") and BYOK key management. Channels are
-    registered in server/index.js and exposed to the renderer via preload.js as
-    window.api.ai.<method>. The Anthropic API key is stored encrypted (Electron safeStorage)
-    in the main process and is NEVER returned to the renderer (only a masked status).
+    IPC API for the AI Copilot and the AI bill scan. Channels are registered in
+    server/ipc/registerIntegrationHandlers.js and exposed to the renderer via preload.js as
+    window.api.ai.<method>.
 
-    The copilot is model-agnostic: provider is either `anthropic` (native Claude SDK) or
-    `openai` (ANY OpenAI-compatible /chat/completions endpoint — OpenAI, DeepSeek, Groq,
-    OpenRouter, local servers — selected via baseUrl + model). It drives the LLM with three
-    consolidated, loop-resistant tools (query / lookup / propose) over the existing accounting
-    services. Writes are returned as proposals the user must approve; the agent never commits.
+    The model is configured by the operator through environment variables (AI_API_KEY,
+    AI_BASE_URL, AI_MODEL, with GEMINI_API_KEY as a fallback); nothing is entered in the UI and
+    the renderer only ever receives a masked status. ai:ask drives any OpenAI-compatible
+    /chat/completions endpoint (Groq by default) with three consolidated tools (query, lookup,
+    propose) over the existing accounting services. The loop is capped at 6 rounds, each model
+    request times out after 60 s, and on the last round the model is asked to answer from what
+    it has gathered. What is sent to the provider includes the prompt, the chat history and the
+    tool results (for example ledger names, party names and amounts).
 
-    The query tool's `resource` enum includes an `audit_trail` resource that routes to
-    auditTrailService.getAll(company_id, {limit: args.limit || 50}), exposing the
-    tamper-evident edit log (MCA Rule 11(g); see the auditTrail module) read-only to the
-    copilot. Pass `limit` to cap the rows returned (defaults to 50).
+    The agent never writes. propose returns a proposal the user must approve in the app; the
+    renderer then calls the proposal's channel with its args. Voucher drafts are rebuilt and
+    checked on the server (active company only, a financial year of that company, a date inside
+    it, the company's own ledgers, Dr = Cr for every type, no Payroll) and are approved through
+    automation:createVoucher, which validates the payload again.
+
+    The query tool's resource enum includes audit_trail, which routes to
+    auditTrailService.getAll(company_id, { limit }) read-only (limit defaults to 50).
 tags:
   - name: ai
-    description: AI copilot and BYOK key management.
+    description: AI Copilot and AI bill scan.
 paths:
   /ai/getKeyStatus:
     post:
       operationId: ai.getKeyStatus
       tags: [ai]
-      summary: Get whether an Anthropic key is configured, its masked form, and the active model.
-      x-ipc-channel: "ai:getKeyStatus"
-      x-window-api: "window.api.ai.getKeyStatus"
-      x-controller: "aiController.getKeyStatus"
+      summary: Whether a Copilot model is configured on the server, its endpoint, model and masked key.
+      x-ipc-channel: 'ai:getKeyStatus'
+      x-window-api: 'window.api.ai.getKeyStatus'
+      x-controller: 'aiController.getKeyStatus'
       responses:
         '200':
-          description: Key status.
+          description: Non-secret status. The raw key never leaves the main process.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/KeyStatus' }
-  /ai/setKey:
-    post:
-      operationId: ai.setKey
-      tags: [ai]
-      summary: Store the model config (provider + API key + base URL + model); key encrypted at rest in the main process.
-      x-ipc-channel: "ai:setKey"
-      x-window-api: "window.api.ai.setKey"
-      x-controller: "aiController.setKey"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                provider: { type: string, enum: [anthropic, openai] }
-                apiKey: { type: string }
-                baseUrl: { type: string, description: "Required for openai-compatible (e.g. https://api.openai.com/v1 or https://api.deepseek.com/v1)." }
-                model: { type: string, description: "Model name (e.g. gpt-4o-mini, deepseek-chat); optional for anthropic." }
-              required: [apiKey]
-      responses:
-        '200':
-          description: "Result with masked key on success."
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success: { type: boolean }
-                  masked: { type: string }
-                  error: { type: string }
-  /ai/clearKey:
-    post:
-      operationId: ai.clearKey
-      tags: [ai]
-      summary: Remove the stored Anthropic API key.
-      x-ipc-channel: "ai:clearKey"
-      x-window-api: "window.api.ai.clearKey"
-      x-controller: "aiController.clearKey"
-      responses:
-        '200':
-          description: "Result."
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success: { type: boolean }
-  /ai/testKey:
-    post:
-      operationId: ai.testKey
-      tags: [ai]
-      summary: Validate a config with a tiny ping (uses the stored config if none passed).
-      x-ipc-channel: "ai:testKey"
-      x-window-api: "window.api.ai.testKey"
-      x-controller: "aiController.testKey"
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                provider: { type: string, enum: [anthropic, openai] }
-                apiKey: { type: string }
-                baseUrl: { type: string }
-                model: { type: string }
-      responses:
-        '200':
-          description: "Validation result."
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success: { type: boolean }
-                  error: { type: string }
   /ai/ask:
     post:
       operationId: ai.ask
       tags: [ai]
-      summary: Ask the copilot. Runs a capped tool-use loop and returns the answer plus any write proposals to approve.
-      x-ipc-channel: "ai:ask"
-      x-window-api: "window.api.ai.ask"
-      x-controller: "aiController.ask"
+      summary: Ask the Copilot. Runs the capped tool loop and returns the answer, any proposals to approve, and a trace of the tool calls.
+      x-ipc-channel: 'ai:ask'
+      x-window-api: 'window.api.ai.ask'
+      x-controller: 'aiController.ask'
       requestBody:
         required: true
         content:
@@ -131,6 +60,7 @@ paths:
                 prompt: { type: string }
                 context:
                   type: object
+                  description: The active company and financial year; tools read them from here.
                   properties:
                     company_id: { type: number }
                     fy_id: { type: number }
@@ -144,37 +74,129 @@ paths:
               required: [prompt]
       responses:
         '200':
-          description: "Copilot answer with optional action proposals."
+          description: The Copilot's answer, or success false with an error.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/AskResult' }
+  /ai/scanBillStatus:
+    post:
+      operationId: ai.scanBillStatus
+      tags: [ai]
+      summary: Whether the bill scan (Gemini, GEMINI_API_KEY) is configured, its model and masked key.
+      x-ipc-channel: 'ai:scanBillStatus'
+      x-window-api: 'window.api.ai.scanBillStatus'
+      x-controller: 'billScanController.getStatus'
+      responses:
+        '200':
+          description: Non-secret status.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScanBillStatus' }
+  /ai/scanBill:
+    post:
+      operationId: ai.scanBill
+      tags: [ai]
+      summary: Read a bill image with Gemini and return a draft voucher with names matched to this company's masters. Nothing is saved.
+      description: >
+        The image is sent to Google Gemini. The draft is opened in the voucher entry screen for
+        review; saving goes through the normal voucher create path.
+      x-ipc-channel: 'ai:scanBill'
+      x-window-api: 'window.api.ai.scanBill'
+      x-controller: 'billScanController.scanBill'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                company_id: { type: number }
+                fy_id: { type: number }
+                imageBase64: { type: string }
+                mimeType: { type: string }
+              required: [company_id, imageBase64]
+      responses:
+        '200':
+          description: The draft, or success false with an error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScanBillResult' }
 components:
   schemas:
     KeyStatus:
       type: object
       properties:
         hasKey: { type: boolean }
-        masked: { type: [string, "null"] }
-        provider: { type: [string, "null"], enum: [anthropic, openai, null] }
-        baseUrl: { type: [string, "null"] }
-        model: { type: [string, "null"] }
+        baseUrl: { type: [string, 'null'] }
+        model: { type: [string, 'null'] }
+        masked: { type: [string, 'null'] }
+    PreviewRow:
+      type: object
+      description: One row of a proposal preview, built on the server.
+      properties:
+        label: { type: string }
+        value: { type: string }
+        detail: { type: string }
+      required: [label, value]
     Proposal:
       type: object
-      description: "A reviewable write action the user must approve; the renderer calls `channel` with `args` on approval."
+      description: A write the user must approve. On approval the renderer calls `channel` with `args`.
       properties:
-        action: { type: string }
-        channel: { type: string }
+        action: { type: string, enum: [create_voucher, reconcile, unreconcile] }
+        channel:
+          type: string
+          description: automation:createVoucher for create_voucher; banking:reconcile or banking:unreconcile.
         args: { type: object, additionalProperties: true }
-        summary: { type: string }
+        summary:
+          type: string
+          description: Built on the server when the action has a preview, else the model's summary.
+        note: { type: string, description: "The model's own summary, when the server built one." }
+        preview:
+          type: array
+          items: { $ref: '#/components/schemas/PreviewRow' }
         requiresApproval: { type: boolean }
+    ToolTraceEntry:
+      type: object
+      description: One tool call made while answering.
+      properties:
+        tool: { type: string, enum: [query, lookup, propose] }
+        input: { type: object, additionalProperties: true }
+        ok: { type: boolean }
+        error: { type: string }
+        ms: { type: number }
     AskResult:
       type: object
       properties:
         success: { type: boolean }
+        model: { type: string }
         text: { type: string }
         error: { type: string }
         rounds: { type: number }
-        capped: { type: boolean }
+        capped:
+          type: boolean
+          description: Set when the round limit was reached and the model still asked for tools.
         proposals:
           type: array
           items: { $ref: '#/components/schemas/Proposal' }
+        toolTrace:
+          type: array
+          items: { $ref: '#/components/schemas/ToolTraceEntry' }
+    ScanBillStatus:
+      type: object
+      properties:
+        hasKey: { type: boolean }
+        model: { type: [string, 'null'] }
+        masked: { type: [string, 'null'] }
+    ScanBillResult:
+      type: object
+      properties:
+        success: { type: boolean }
+        error: { type: string }
+        model: { type: string }
+        draft:
+          type: object
+          additionalProperties: true
+          description: Voucher draft in the shape the entry screen hydrates (not saved).
+        unresolvedLedgers: { type: array, items: { type: string } }
+        unresolvedItems: { type: array, items: { type: string } }
+        warnings: { type: array, items: { type: string } }
