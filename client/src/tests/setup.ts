@@ -14,6 +14,8 @@ import { vi } from 'vitest';
 // jsdom does not implement scrollIntoView — polyfill it so components that
 // call element.scrollIntoView() (e.g. keyboard-navigation lists) don't throw.
 Element.prototype.scrollIntoView = vi.fn();
+// Nor element.scrollTo (the Copilot scrolls its conversation to the latest message).
+Element.prototype.scrollTo = vi.fn();
 
 // ─── window.api mock ────────────────────────────────────────────────────────
 // Every property is a `vi.fn()` that resolves to a sensible default so
@@ -80,15 +82,13 @@ window.api = {
     create: vi.fn().mockResolvedValue({ success: true, ledger: {} }),
     update: vi.fn().mockResolvedValue({ success: true, ledger: {} }),
     delete: vi.fn().mockResolvedValue({ success: true }),
-    getTotalOpeningBalance: vi
-      .fn()
-      .mockResolvedValue({
-        success: true,
-        totalDr: 0,
-        totalCr: 0,
-        netBalance: 0,
-        balanceType: 'Dr',
-      }),
+    getTotalOpeningBalance: vi.fn().mockResolvedValue({
+      success: true,
+      totalDr: 0,
+      totalCr: 0,
+      netBalance: 0,
+      balanceType: 'Dr',
+    }),
   },
 
   // ── Vouchers ──────────────────────────────────────────────────────────────
@@ -107,15 +107,13 @@ window.api = {
     trialBalance: vi.fn().mockResolvedValue({ success: true, rows: [] }),
     balanceSheet: vi.fn().mockResolvedValue({ success: true, rows: [] }),
     profitLoss: vi.fn().mockResolvedValue({ success: true, rows: [] }),
-    ledgerReport: vi
-      .fn()
-      .mockResolvedValue({
-        success: true,
-        ledger_name: 'Test Ledger',
-        opening_balance: 0,
-        rows: [],
-        closing_balance: 0,
-      }),
+    ledgerReport: vi.fn().mockResolvedValue({
+      success: true,
+      ledger_name: 'Test Ledger',
+      opening_balance: 0,
+      rows: [],
+      closing_balance: 0,
+    }),
     cashBook: vi.fn().mockResolvedValue({ success: true, rows: [] }),
     bankBook: vi.fn().mockResolvedValue({ success: true, rows: [] }),
     daybook: vi.fn().mockResolvedValue({ success: true, rows: [] }),
@@ -226,5 +224,34 @@ window.api = {
     getAll: vi.fn().mockResolvedValue({ success: true, costCategories: [] }),
     create: vi.fn().mockResolvedValue({ success: true, costCategory: {} }),
     delete: vi.fn().mockResolvedValue({ success: true }),
+  },
+
+  // ── AI Copilot / assisted entry / Tally ──────────────────────────────────
+  // AI is unconfigured by default; Copilot tests opt in.
+  ai: {
+    getKeyStatus: vi
+      .fn()
+      .mockResolvedValue({ hasKey: false, baseUrl: null, model: null, masked: null }),
+    ask: vi.fn().mockResolvedValue({ success: true, text: '', proposals: [], toolTrace: [] }),
+    scanBillStatus: vi.fn().mockResolvedValue({ hasKey: false, model: null, masked: null }),
+    scanBill: vi.fn().mockResolvedValue({ success: false, error: 'Gemini is not configured.' }),
+  },
+  automation: {
+    getVoucherSchema: vi.fn().mockResolvedValue({ schema: {}, examples: {}, voucherTypes: [] }),
+    validateVoucher: vi.fn().mockResolvedValue({ ok: true, errors: [], warnings: [] }),
+    createVoucher: vi
+      .fn()
+      .mockResolvedValue({ success: true, voucher_id: 1, voucher_number: 'JV-1', warnings: [] }),
+  },
+  tally: {
+    testConnection: vi.fn().mockResolvedValue({ success: false, reachable: false }),
+    preview: vi.fn().mockResolvedValue({ success: false }),
+    importMasters: vi.fn().mockResolvedValue({ success: false }),
+    importVouchers: vi.fn().mockResolvedValue({ success: false }),
+    pickFolder: vi.fn().mockResolvedValue({ success: true, canceled: true }),
+    previewFolder: vi.fn().mockResolvedValue({ success: false }),
+    importFolder: vi.fn().mockResolvedValue({ success: false }),
+    repairImportedGst: vi.fn().mockResolvedValue({ success: false }),
+    onImportProgress: vi.fn(() => () => {}),
   },
 } as unknown as typeof window.api;
