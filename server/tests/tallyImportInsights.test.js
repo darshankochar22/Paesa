@@ -14,6 +14,11 @@ const importer = require('../integrations/tally/importer');
 const insights = require('../integrations/tally/importInsightsService');
 const { setupTestDB, createTestCompany, db } = require('./helpers');
 const { makeTallyFolder, tallyCompany } = require('./tallyFixtures');
+const { callTool } = require('../ai/tools');
+const agent = require('../ai/agent');
+const { normalizeContext } = require('../ai/aiController');
+const automationController = require('../automation/automationController');
+const { fakeOpenAI, reply, toolCall } = require('./fakeOpenAI');
 
 let imports = 0;
 // Import the fixture into a new company, the way ImportTally does (numbers kept).
@@ -29,35 +34,30 @@ async function importFixture() {
   return { companyId: summary.company.company_id, name: summary.company.name, parsed, summary };
 }
 
-const ledgerId = async (companyId, name) =>
-  Number(
-    (
-      await db.execute('SELECT ledger_id FROM ledgers WHERE company_id = ? AND name = ?', [
-        companyId,
-        name,
-      ])
-    ).rows[0].ledger_id,
-  );
+const ledgerId = async (companyId, name) => {
+  const sql = 'SELECT ledger_id FROM ledgers WHERE company_id = ? AND name = ?';
+  return Number((await db.execute(sql, [companyId, name])).rows[0].ledger_id);
+};
+
+let one; // a Data folder holding one company
+let two; // a Data folder holding two
+
+beforeAll(async () => {
+  await setupTestDB();
+  one = makeTallyFolder({ companies: ['10000'] });
+  two = makeTallyFolder({ companies: ['10000', '10001'] });
+});
+afterAll(() => {
+  one.remove();
+  two.remove();
+});
+beforeEach(() => {
+  insights.clearSourceCache();
+  mockExtract.mockReset();
+  mockExtract.mockImplementation(() => tallyCompany());
+});
 
 describe('Tally import insights', () => {
-  let one; // a Data folder holding one company
-  let two; // a Data folder holding two
-
-  beforeAll(async () => {
-    await setupTestDB();
-    one = makeTallyFolder({ companies: ['10000'] });
-    two = makeTallyFolder({ companies: ['10000', '10001'] });
-  });
-  afterAll(() => {
-    one.remove();
-    two.remove();
-  });
-  beforeEach(() => {
-    insights.clearSourceCache();
-    mockExtract.mockReset();
-    mockExtract.mockImplementation(() => tallyCompany());
-  });
-
   it('needs an attached folder', async () => {
     const res = await insights.inspectFolder({}, {});
     expect(res).toEqual({ success: false, error: expect.stringMatching(/No Tally data folder/) });
@@ -339,5 +339,117 @@ describe('Tally import insights', () => {
     expect(res.success).toBe(false);
     expect(res.error).toMatch(/If TallyPrime has this company open, close it/);
     expect(res.error).not.toContain(one.root);
+  });
+});
+
+// Row counts of every table an import or an approval writes to, plus SQLite's own count of
+// changed rows on this connection, which also catches an insert undone by a delete.
+const WRITE_TARGETS = [
+  'companies',
+  'financial_years',
+  'groups',
+  'ledgers',
+  'ledger_statutory_details',
+  'units',
+  'stock_items',
+  'vouchers',
+  'voucher_entries',
+  'voucher_stock_entries',
+  'gst_registrations',
+  'audit_trail',
+  'tally_features',
+];
+async function writeSnapshot() {
+  const snapshot = {};
+  for (const table of WRITE_TARGETS) {
+    snapshot[table] = Number((await db.execute(`SELECT COUNT(*) AS n FROM ${table}`)).rows[0].n);
+  }
+  snapshot.total_changes = Number((await db.execute('SELECT total_changes() AS n')).rows[0].n);
+  return snapshot;
+}
+
+describe('Copilot tally_* resources', () => {
+  it('ask for a folder when none is attached', async () => {
+    for (const resource of [
+      'tally_inspect',
+      'tally_preview',
+      'tally_verify',
+      'tally_ledger_diff',
+    ]) {
+      const res = await callTool('query', { resource }, { company_id: 1 });
+      expect(res).toEqual({
+        success: false,
+        error: expect.stringMatching(/No Tally data folder is attached/),
+      });
+    }
+  });
+
+  it('give the model the folder name but never its path', () => {
+    const prompt = agent.systemPrompt({ company_id: 1, fy_id: 2, tally_folder: one.dirs['10000'] });
+    expect(prompt).toContain('tally_folder=attached (10000)');
+    expect(prompt).not.toContain(one.root);
+  });
+
+  it('keep the request context to known keys and types', () => {
+    expect(normalizeContext({ company_id: '3', fy_id: 4, tally_folder: one.root, x: 1 })).toEqual({
+      company_id: 3,
+      fy_id: 4,
+      tally_folder: one.root,
+    });
+    expect(normalizeContext({ tally_folder: { path: '/etc' } }).tally_folder).toBeUndefined();
+  });
+
+  it('run a whole review session without writing anything', async () => {
+    const { companyId, name } = await importFixture();
+    const fy = await db.execute(
+      "SELECT fy_id FROM financial_years WHERE company_id = ? AND start_date = '2025-04-01'",
+      [companyId],
+    );
+    const ctx = { company_id: companyId, fy_id: fy.rows[0].fy_id, tally_folder: one.root };
+    const cash = await ledgerId(companyId, 'Cash');
+    const expenses = await ledgerId(companyId, 'Office Expenses');
+    const before = await writeSnapshot();
+
+    const fake = fakeOpenAI([
+      toolCall('c1', 'query', { resource: 'tally_inspect' }),
+      toolCall('c2', 'query', { resource: 'tally_preview', company_name: name }),
+      toolCall('c3', 'query', { resource: 'tally_verify' }),
+      toolCall('c4', 'query', { resource: 'tally_ledger_diff', ledger_id: cash }),
+      toolCall('c5', 'propose', {
+        action: 'create_voucher',
+        payload: {
+          voucher_type: 'Journal',
+          date: '2025-08-01',
+          entries: [
+            { ledger_id: expenses, type: 'Dr', amount: 50 },
+            { ledger_id: cash, type: 'Cr', amount: 50 },
+          ],
+        },
+      }),
+      reply('Reviewed the import.'),
+    ]);
+    const res = await agent.ask({
+      config: { apiKey: 'test-key' },
+      prompt: 'Review the Tally import',
+      context: ctx,
+      fetchImpl: fake.fetchImpl,
+    });
+
+    expect(res.success).toBe(true);
+    expect(res.toolTrace.map((t) => [t.input.resource || t.input.action, t.ok])).toEqual([
+      ['tally_inspect', true],
+      ['tally_preview', true],
+      ['tally_verify', true],
+      ['tally_ledger_diff', true],
+      ['create_voucher', true],
+    ]);
+    expect(res.proposals).toHaveLength(1);
+    expect(await writeSnapshot()).toEqual(before);
+    for (const call of fake.calls) expect(JSON.stringify(call.body)).not.toContain(one.root);
+
+    // The snapshot does notice writes: approving the proposal changes it.
+    const saved = await automationController.createVoucher(null, res.proposals[0].args);
+    expect(saved.success).toBe(true);
+    expect(await writeSnapshot()).not.toEqual(before);
   });
 });

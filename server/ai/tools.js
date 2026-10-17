@@ -30,6 +30,11 @@ const advancedAccountingReportService = require('../report/advancedAccountingRep
 const { db } = require('../db/index');
 const { validatePayload, isBalanced } = require('../automation/voucherContract');
 
+// Read-only review of a TallyPrime folder the user attached in the Copilot. Required on first
+// use, so loading the tool layer (and the MCP server, which has no folder to attach) does not
+// pull in the Tally decoder.
+const tallyInsights = () => require('../integrations/tally/importInsightsService');
+
 const QUERY_RESOURCES = {
   trial_balance: (c) =>
     trialBalance(c.company_id, c.fy_id).then((res) =>
@@ -82,6 +87,12 @@ const QUERY_RESOURCES = {
       a.as_on_date || a.to_date,
     ),
   budget_variance: (c) => advancedAccountingReportService.budgetVsActual(c.company_id, c.fy_id),
+
+  // Tally import review: need context.tally_folder; never write.
+  tally_inspect: (c, a) => tallyInsights().inspectFolder(c, a),
+  tally_preview: (c, a) => tallyInsights().previewImport(c, a),
+  tally_verify: (c, a) => tallyInsights().checkImport(c, a),
+  tally_ledger_diff: (c, a) => tallyInsights().explainLedger(c, a),
 };
 
 // ── Voucher drafts ─────────────────────────────────────────────────────────────
@@ -253,6 +264,7 @@ const TOOL_DEFS = [
       'Resources: ' +
       Object.keys(QUERY_RESOURCES).join(', ') +
       '. ' +
+      'The tally_* resources read the TallyPrime folder the user attached in the Copilot and compare it with the books; they never write. ' +
       'Use this for any question about balances, reports, vouchers or bank reconciliation. Do NOT pass company_id/fy_id — they are implicit.',
     input_schema: {
       type: 'object',
@@ -261,13 +273,24 @@ const TOOL_DEFS = [
         ledger_id: {
           type: 'number',
           description:
-            'Required for ledger_* / bank_* resources. Resolve names via the lookup tool first.',
+            'Required for ledger_* / bank_* resources and tally_ledger_diff. Resolve names via the lookup tool first.',
         },
         from_date: { type: 'string', description: 'ISO date YYYY-MM-DD (optional range start)' },
         to_date: { type: 'string', description: 'ISO date YYYY-MM-DD (optional range end)' },
         limit: {
           type: 'number',
-          description: 'Max rows to return (used by the audit_trail resource; defaults to 50).',
+          description:
+            'Max rows to return (audit_trail: default 50; tally_*: default 10, at most 25).',
+        },
+        company_dir: {
+          type: 'string',
+          description:
+            'tally_* only: the company folder name, from tally_inspect, when the attached folder holds several companies.',
+        },
+        company_name: {
+          type: 'string',
+          description:
+            'tally_preview only: the company name the import would use; an existing company with that name is the target.',
         },
       },
       required: ['resource'],
