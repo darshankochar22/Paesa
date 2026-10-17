@@ -9,7 +9,10 @@
 'use strict';
 
 const { extractCompany } = require('./binExtract');
-const { adapt } = require('./binImportRunner');
+
+// binImportRunner requires this module at load time, so requiring it back here left
+// whichever of the two loaded second holding an empty export (F1). Resolve it per call.
+const adapt = (...args) => require('./binImportRunner').adapt(...args);
 
 const norm = (s) =>
   String(s == null ? '' : s)
