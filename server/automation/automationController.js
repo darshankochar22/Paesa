@@ -6,7 +6,12 @@
 const { db } = require('../db/index');
 const { sql } = require('drizzle-orm');
 const voucherService = require('../voucher/voucherService');
-const { VOUCHER_TYPES, VOUCHER_SCHEMA, buildExamples, validatePayload } = require('./voucherContract');
+const {
+  VOUCHER_TYPES,
+  VOUCHER_SCHEMA,
+  buildExamples,
+  validatePayload,
+} = require('./voucherContract');
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -67,14 +72,19 @@ module.exports = {
     try {
       unresolved = await resolveLedgerIds(payload.company_id, payload);
     } catch (err) {
-      return { success: false, errors: [`Ledger lookup failed: ${err.message}`], warnings: v.warnings };
+      return {
+        success: false,
+        errors: [`Ledger lookup failed: ${err.message}`],
+        warnings: v.warnings,
+      };
     }
     if (unresolved.length) {
       return {
         success: false,
         warnings: v.warnings,
         errors: unresolved.map(
-          (n) => `No ledger named "${n}" exists in this company. Use an existing ledger name, or set ledger_id.`,
+          (n) =>
+            `No ledger named "${n}" exists in this company. Use an existing ledger name, or set ledger_id.`,
         ),
       };
     }

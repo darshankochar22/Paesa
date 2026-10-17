@@ -80,15 +80,13 @@ window.api = {
     create: vi.fn().mockResolvedValue({ success: true, ledger: {} }),
     update: vi.fn().mockResolvedValue({ success: true, ledger: {} }),
     delete: vi.fn().mockResolvedValue({ success: true }),
-    getTotalOpeningBalance: vi
-      .fn()
-      .mockResolvedValue({
-        success: true,
-        totalDr: 0,
-        totalCr: 0,
-        netBalance: 0,
-        balanceType: 'Dr',
-      }),
+    getTotalOpeningBalance: vi.fn().mockResolvedValue({
+      success: true,
+      totalDr: 0,
+      totalCr: 0,
+      netBalance: 0,
+      balanceType: 'Dr',
+    }),
   },
 
   // ── Vouchers ──────────────────────────────────────────────────────────────
@@ -107,15 +105,13 @@ window.api = {
     trialBalance: vi.fn().mockResolvedValue({ success: true, rows: [] }),
     balanceSheet: vi.fn().mockResolvedValue({ success: true, rows: [] }),
     profitLoss: vi.fn().mockResolvedValue({ success: true, rows: [] }),
-    ledgerReport: vi
-      .fn()
-      .mockResolvedValue({
-        success: true,
-        ledger_name: 'Test Ledger',
-        opening_balance: 0,
-        rows: [],
-        closing_balance: 0,
-      }),
+    ledgerReport: vi.fn().mockResolvedValue({
+      success: true,
+      ledger_name: 'Test Ledger',
+      opening_balance: 0,
+      rows: [],
+      closing_balance: 0,
+    }),
     cashBook: vi.fn().mockResolvedValue({ success: true, rows: [] }),
     bankBook: vi.fn().mockResolvedValue({ success: true, rows: [] }),
     daybook: vi.fn().mockResolvedValue({ success: true, rows: [] }),

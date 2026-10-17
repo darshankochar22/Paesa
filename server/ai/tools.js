@@ -29,42 +29,63 @@ const advancedInventoryReportService = require('../report/advancedInventoryRepor
 const advancedAccountingReportService = require('../report/advancedAccountingReportService');
 
 const QUERY_RESOURCES = {
-  trial_balance:    (c) => trialBalance(c.company_id, c.fy_id).then(res => res.success ? { ...res, rows: res.groups } : res),
-  balance_sheet:    (c) => balanceSheet(c.company_id, c.fy_id),
-  profit_loss:      (c) => profitLoss(c.company_id, c.fy_id),
-  daybook:          (c, a) => daybook(c.company_id, c.fy_id, a.from_date, a.to_date),
-  cash_book:        (c, a) => cashBook(c.company_id, c.fy_id, a.from_date, a.to_date),
-  bank_book:        (c, a) => bankBook(c.company_id, c.fy_id, a.ledger_id, a.from_date, a.to_date),
-  ledger_statement: (c, a) => ledgerReport(c.company_id, c.fy_id, a.ledger_id, a.from_date, a.to_date),
+  trial_balance: (c) =>
+    trialBalance(c.company_id, c.fy_id).then((res) =>
+      res.success ? { ...res, rows: res.groups } : res,
+    ),
+  balance_sheet: (c) => balanceSheet(c.company_id, c.fy_id),
+  profit_loss: (c) => profitLoss(c.company_id, c.fy_id),
+  daybook: (c, a) => daybook(c.company_id, c.fy_id, a.from_date, a.to_date),
+  cash_book: (c, a) => cashBook(c.company_id, c.fy_id, a.from_date, a.to_date),
+  bank_book: (c, a) => bankBook(c.company_id, c.fy_id, a.ledger_id, a.from_date, a.to_date),
+  ledger_statement: (c, a) =>
+    ledgerReport(c.company_id, c.fy_id, a.ledger_id, a.from_date, a.to_date),
   bills_receivable: (c) => outstandingReportService.billsReceivable(c.company_id, c.fy_id),
-  bills_payable:    (c) => outstandingReportService.billsPayable(c.company_id, c.fy_id),
-  cash_flow:        (c, a) => cashFlowReportService.cashFlow(c.company_id, c.fy_id, a.from_date, a.to_date),
-  funds_flow:       (c, a) => fundsFlowReportService.fundsFlow(c.company_id, c.fy_id, a.from_date, a.to_date),
-  stock_summary:    (c, a) => stockSummaryReportService.stockSummary(c.company_id, c.fy_id, a.as_on_date || a.to_date),
-  ratio_analysis:   (c) => ratioAnalysisReportService.ratioAnalysis(c.company_id, c.fy_id),
-  ledger_balance:   (c, a) => voucherService.getLedgerBalance(a.ledger_id, c.company_id, c.fy_id),
-  pending_bills:    (c, a) => voucherService.getPendingBills(a.ledger_id, c.company_id, c.fy_id),
-  vouchers:         (c) => voucherService.getAll(c.company_id, c.fy_id),
-  unreconciled_bank:(c, a) => bankingService.getUnreconciled(c.company_id, c.fy_id, a.ledger_id),
-  bank_summary:     (c, a) => bankingService.getSummary(c.company_id, c.fy_id, a.ledger_id),
-  ledgers:          (c) => ledgerService.getAll(c.company_id),
-  audit_trail:      (c, a) => auditTrailService.getAll(c.company_id, { limit: a.limit || 50 }),
-  
+  bills_payable: (c) => outstandingReportService.billsPayable(c.company_id, c.fy_id),
+  cash_flow: (c, a) =>
+    cashFlowReportService.cashFlow(c.company_id, c.fy_id, a.from_date, a.to_date),
+  funds_flow: (c, a) =>
+    fundsFlowReportService.fundsFlow(c.company_id, c.fy_id, a.from_date, a.to_date),
+  stock_summary: (c, a) =>
+    stockSummaryReportService.stockSummary(c.company_id, c.fy_id, a.as_on_date || a.to_date),
+  ratio_analysis: (c) => ratioAnalysisReportService.ratioAnalysis(c.company_id, c.fy_id),
+  ledger_balance: (c, a) => voucherService.getLedgerBalance(a.ledger_id, c.company_id, c.fy_id),
+  pending_bills: (c, a) => voucherService.getPendingBills(a.ledger_id, c.company_id, c.fy_id),
+  vouchers: (c) => voucherService.getAll(c.company_id, c.fy_id),
+  unreconciled_bank: (c, a) => bankingService.getUnreconciled(c.company_id, c.fy_id, a.ledger_id),
+  bank_summary: (c, a) => bankingService.getSummary(c.company_id, c.fy_id, a.ledger_id),
+  ledgers: (c) => ledgerService.getAll(c.company_id),
+  audit_trail: (c, a) => auditTrailService.getAll(c.company_id, { limit: a.limit || 50 }),
+
   // Phase 4 additions
-  godown_summary:    (c, a) => advancedInventoryReportService.godownSummary(c.company_id, c.fy_id, a.as_on_date || a.to_date),
-  stock_ageing:      (c, a) => advancedInventoryReportService.stockAgeing(c.company_id, c.fy_id, a.as_on_date || a.to_date),
-  movement_analysis: (c, a) => advancedInventoryReportService.movementAnalysis(c.company_id, c.fy_id, a.as_on_date || a.to_date),
-  reorder_status:    (c) => advancedInventoryReportService.reorderStatus(c.company_id, c.fy_id),
-  sales_outstanding: (c) => advancedInventoryReportService.orderOutstanding(c.company_id, c.fy_id, 'sales'),
-  purchase_outstanding:(c) => advancedInventoryReportService.orderOutstanding(c.company_id, c.fy_id, 'purchase'),
-  cost_centre:       (c, a) => advancedAccountingReportService.costCentreReport(c.company_id, c.fy_id, a.as_on_date || a.to_date),
-  budget_variance:   (c) => advancedAccountingReportService.budgetVsActual(c.company_id, c.fy_id),
+  godown_summary: (c, a) =>
+    advancedInventoryReportService.godownSummary(c.company_id, c.fy_id, a.as_on_date || a.to_date),
+  stock_ageing: (c, a) =>
+    advancedInventoryReportService.stockAgeing(c.company_id, c.fy_id, a.as_on_date || a.to_date),
+  movement_analysis: (c, a) =>
+    advancedInventoryReportService.movementAnalysis(
+      c.company_id,
+      c.fy_id,
+      a.as_on_date || a.to_date,
+    ),
+  reorder_status: (c) => advancedInventoryReportService.reorderStatus(c.company_id, c.fy_id),
+  sales_outstanding: (c) =>
+    advancedInventoryReportService.orderOutstanding(c.company_id, c.fy_id, 'sales'),
+  purchase_outstanding: (c) =>
+    advancedInventoryReportService.orderOutstanding(c.company_id, c.fy_id, 'purchase'),
+  cost_centre: (c, a) =>
+    advancedAccountingReportService.costCentreReport(
+      c.company_id,
+      c.fy_id,
+      a.as_on_date || a.to_date,
+    ),
+  budget_variance: (c) => advancedAccountingReportService.budgetVsActual(c.company_id, c.fy_id),
 };
 
 const PROPOSABLE = {
   create_voucher: { channel: 'voucher:create', required: ['voucher_type', 'date', 'entries'] },
-  reconcile:      { channel: 'banking:reconcile', required: ['entry_id', 'voucher_id', 'ledger_id'] },
-  unreconcile:    { channel: 'banking:unreconcile', required: ['entry_id'] },
+  reconcile: { channel: 'banking:reconcile', required: ['entry_id', 'voucher_id', 'ledger_id'] },
+  unreconcile: { channel: 'banking:unreconcile', required: ['entry_id'] },
 };
 
 // Anthropic tool definitions (also mapped to MCP params by the FastMCP server).
@@ -73,23 +94,33 @@ const TOOL_DEFS = [
     name: 'query',
     description:
       'Read accounting data for the active company/financial year. Pick a resource and (when needed) a ledger_id / date range. ' +
-      'Resources: ' + Object.keys(QUERY_RESOURCES).join(', ') + '. ' +
+      'Resources: ' +
+      Object.keys(QUERY_RESOURCES).join(', ') +
+      '. ' +
       'Use this for any question about balances, reports, vouchers or bank reconciliation. Do NOT pass company_id/fy_id — they are implicit.',
     input_schema: {
       type: 'object',
       properties: {
         resource: { type: 'string', enum: Object.keys(QUERY_RESOURCES) },
-        ledger_id: { type: 'number', description: 'Required for ledger_* / bank_* resources. Resolve names via the lookup tool first.' },
+        ledger_id: {
+          type: 'number',
+          description:
+            'Required for ledger_* / bank_* resources. Resolve names via the lookup tool first.',
+        },
         from_date: { type: 'string', description: 'ISO date YYYY-MM-DD (optional range start)' },
         to_date: { type: 'string', description: 'ISO date YYYY-MM-DD (optional range end)' },
-        limit: { type: 'number', description: 'Max rows to return (used by the audit_trail resource; defaults to 50).' },
+        limit: {
+          type: 'number',
+          description: 'Max rows to return (used by the audit_trail resource; defaults to 50).',
+        },
       },
       required: ['resource'],
     },
   },
   {
     name: 'lookup',
-    description: 'Resolve a ledger / party / stock-item name to its id before querying or proposing actions. Returns the closest matches.',
+    description:
+      'Resolve a ledger / party / stock-item name to its id before querying or proposing actions. Returns the closest matches.',
     input_schema: {
       type: 'object',
       properties: {
@@ -108,8 +139,15 @@ const TOOL_DEFS = [
       type: 'object',
       properties: {
         action: { type: 'string', enum: Object.keys(PROPOSABLE) },
-        payload: { type: 'object', description: 'The action payload (e.g. voucher with entries). Use resolved ids from lookup.' },
-        summary: { type: 'string', description: 'One-line human summary of what this action does.' },
+        payload: {
+          type: 'object',
+          description:
+            'The action payload (e.g. voucher with entries). Use resolved ids from lookup.',
+        },
+        summary: {
+          type: 'string',
+          description: 'One-line human summary of what this action does.',
+        },
       },
       required: ['action', 'payload'],
     },
@@ -130,13 +168,16 @@ async function runLookup(context, args) {
     const stockItemService = require('../stockItem/stockItemService');
     const res = await stockItemService.getAll(context.company_id);
     const items = (res.stockItems || res || []).filter((i) =>
-      (i.name || '').toLowerCase().includes(q.toLowerCase()));
+      (i.name || '').toLowerCase().includes(q.toLowerCase()),
+    );
     return { matches: items.slice(0, 10).map((i) => ({ id: i.stock_item_id, name: i.name })) };
   }
   // ledger or party -> ledger search
   const res = await voucherService.searchLedgers(context.company_id, q);
   const rows = res.ledgers || res || [];
-  return { matches: rows.slice(0, 10).map((l) => ({ id: l.ledger_id, name: l.name, group: l.group_name })) };
+  return {
+    matches: rows.slice(0, 10).map((l) => ({ id: l.ledger_id, name: l.name, group: l.group_name })),
+  };
 }
 
 async function runPropose(context, args) {
@@ -149,7 +190,10 @@ async function runPropose(context, args) {
 
   const missing = spec.required.filter((k) => payload[k] == null);
   if (missing.length) {
-    return { ok: false, error: `Missing required fields for ${args.action}: ${missing.join(', ')}` };
+    return {
+      ok: false,
+      error: `Missing required fields for ${args.action}: ${missing.join(', ')}`,
+    };
   }
   // A PROPOSAL — not executed. The renderer renders it and calls `channel` with `args` on approval.
   return {
@@ -167,10 +211,14 @@ async function runPropose(context, args) {
 // Single dispatch used by BOTH the in-app agent and the FastMCP server.
 async function callTool(name, args = {}, context = {}) {
   switch (name) {
-    case 'query': return runQuery(context, args);
-    case 'lookup': return runLookup(context, args);
-    case 'propose': return runPropose(context, args);
-    default: throw new Error(`Unknown tool "${name}"`);
+    case 'query':
+      return runQuery(context, args);
+    case 'lookup':
+      return runLookup(context, args);
+    case 'propose':
+      return runPropose(context, args);
+    default:
+      throw new Error(`Unknown tool "${name}"`);
   }
 }
 
