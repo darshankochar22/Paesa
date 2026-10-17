@@ -95,11 +95,31 @@ export interface TallyFolderPreviewResult {
   error?: string;
 }
 
+// One field-coverage row from the import's self-check (verifyImport.reconcileFields).
+export interface TallyFieldCheck {
+  master: string;
+  field: string;
+  srcHas: number;
+  matched: number;
+  missing: number;
+  differ: number;
+  ok: boolean;
+  sample: string[];
+}
+
 export interface TallyFolderImportSummary {
   company: { company_id: number; name: string; created: boolean };
   financialYears: { start: string; fy_id: number }[];
   masters: Record<string, TallyImportSummary>;
   vouchers: TallyImportSummary;
+  // ok is null (with error set) when the self-check itself could not run.
+  reconciliation: {
+    ok: boolean | null;
+    summary?: string;
+    error?: string;
+    checks: TallyFieldCheck[];
+    failed: TallyFieldCheck[];
+  } | null;
 }
 
 export interface TallyFolderImportResult {
@@ -109,12 +129,16 @@ export interface TallyFolderImportResult {
 }
 
 export interface TallyFolderImportProgress {
-  phase: 'extract' | 'extracted' | 'company' | 'masters' | 'vouchers';
+  phase: 'extract' | 'extracted' | 'company' | 'masters' | 'vouchers' | 'reconcile';
   done?: number;
   total?: number;
   fyStart?: string;
   name?: string;
   preview?: TallyPreview;
+  // phase 'reconcile': the self-check result; failed rows read "master.field: matched/srcHas".
+  ok?: boolean;
+  summary?: string;
+  failed?: string[];
 }
 
 export interface TallyAPI {
