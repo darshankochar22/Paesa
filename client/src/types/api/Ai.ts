@@ -82,7 +82,8 @@ export interface AiAPI {
     getKeyStatus: () => Promise<AiStatus>;
     ask: (payload: {
       prompt: string;
-      context?: { company_id?: number; fy_id?: number };
+      // tally_folder: a TallyPrime folder from tally.pickFolder, read by the tally_* tools.
+      context?: { company_id?: number; fy_id?: number; tally_folder?: string };
       history?: { role: 'user' | 'assistant'; text: string }[];
     }) => Promise<{
       success: boolean;

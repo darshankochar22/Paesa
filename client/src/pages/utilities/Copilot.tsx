@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useCompany } from '@/context/CompanyContext';
-import { PageTitleBar, Button, Input, StatGrid, tokens } from '@/components/ui';
+import { PageTitleBar, Button, Input, StatGrid, Badge, AlertBanner, tokens } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { resolveCopilotLink } from '@/lib/copilotLinks';
 import ReactMarkdown from 'react-markdown';
@@ -37,6 +37,27 @@ const SUGGESTIONS = [
   'Which bills are overdue?',
 ];
 
+// Shown instead while a Tally folder is attached.
+const TALLY_SUGGESTIONS = [
+  'What is in this Tally folder?',
+  'What would importing it as a new company do?',
+  'Check the import against the books',
+  'Which ledgers differ from the Tally data?',
+];
+
+// The last part of a Windows or POSIX path, for the folder chip.
+const folderName = (p: string) => p.split(/[\\/]/).filter(Boolean).pop() || p;
+
+// The conversation as the model sees it next turn, including what became of each proposal
+// (pending, done or failed), so it never assumes an unapproved draft was saved.
+const historyText = (m: Msg) =>
+  [
+    m.text,
+    ...(m.proposals || []).map((p) =>
+      p.requiresApproval ? `[Proposal awaiting approval: ${p.summary}]` : `[Proposal ${p.summary}]`,
+    ),
+  ].join('\n');
+
 export default function Copilot() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,6 +68,9 @@ export default function Copilot() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [thinking, setThinking] = useState(false);
+  // A TallyPrime folder picked in the OS dialog; the Copilot's tally_* tools read it.
+  const [tallyFolder, setTallyFolder] = useState<string | null>(null);
+  const [folderError, setFolderError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -67,13 +91,17 @@ export default function Copilot() {
     async (overridePrompt?: string) => {
       const prompt = (overridePrompt || input).trim();
       if (!prompt || thinking) return;
-      const history = messages.map((m) => ({ role: m.role, text: m.text }));
+      const history = messages.map((m) => ({ role: m.role, text: historyText(m) }));
       setMessages((m) => [...m, { role: 'user', text: prompt }]);
       setInput('');
       setThinking(true);
       const res = await window.api.ai.ask({
         prompt,
-        context: { company_id: selectedCompany?.company_id, fy_id: activeFY?.fy_id },
+        context: {
+          company_id: selectedCompany?.company_id,
+          fy_id: activeFY?.fy_id,
+          ...(tallyFolder ? { tally_folder: tallyFolder } : {}),
+        },
         history,
       });
       setThinking(false);
@@ -89,8 +117,21 @@ export default function Copilot() {
           : { role: 'assistant', text: `⚠ ${res.error}` },
       ]);
     },
-    [input, thinking, messages, selectedCompany, activeFY],
+    [input, thinking, messages, selectedCompany, activeFY, tallyFolder],
   );
+
+  // Attach a TallyPrime folder: a company folder as is, or a Data folder holding several
+  // companies (the Copilot then asks which one). Anything else is explained, not attached.
+  const pickTallyFolder = async () => {
+    setFolderError(null);
+    const res = await window.api.tally.pickFolder();
+    if (!res.success) return setFolderError(res.error || 'Could not open the folder picker.');
+    if (res.canceled) return;
+    if (res.valid && res.dataDir) return setTallyFolder(res.dataDir);
+    if (res.folder && res.candidates && res.candidates.length > 1)
+      return setTallyFolder(res.folder);
+    setFolderError(res.error || 'That folder has no TallyPrime data.');
+  };
 
   // Auto-send an initial prompt when navigated here from a report ("Ask AI" / Alt+A).
   useEffect(() => {
@@ -210,7 +251,7 @@ export default function Copilot() {
               <div className="max-w-xl mx-auto text-center space-y-3 pt-4">
                 <div className="text-sm font-bold text-zinc-700">Ask about your books</div>
                 <div className="flex flex-wrap gap-2 justify-center">
-                  {SUGGESTIONS.map((s) => (
+                  {(tallyFolder ? TALLY_SUGGESTIONS : SUGGESTIONS).map((s) => (
                     <button
                       key={s}
                       onClick={() => setInput(s)}
@@ -328,8 +369,39 @@ export default function Copilot() {
             </div>
           </div>
 
+          {folderError && (
+            <AlertBanner
+              type="warning"
+              message={folderError}
+              onDismiss={() => setFolderError(null)}
+            />
+          )}
+
           {/* Composer */}
           <div className="border-t border-zinc-200 bg-white px-4 py-3 flex items-center gap-2">
+            {tallyFolder ? (
+              <Badge tone="outline" className="gap-1 py-0 pr-0 whitespace-nowrap">
+                TALLY · {folderName(tallyFolder)}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 px-1"
+                  aria-label="Detach Tally folder"
+                  onClick={() => setTallyFolder(null)}
+                >
+                  &times;
+                </Button>
+              </Badge>
+            ) : (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={pickTallyFolder}
+                disabled={!configured}
+              >
+                Tally folder...
+              </Button>
+            )}
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}

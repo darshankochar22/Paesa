@@ -35,17 +35,35 @@ const answerWith = (res: Record<string, unknown>) => {
   window.api.ai.ask = vi.fn().mockResolvedValue({ success: true, proposals: [], ...res });
 };
 
+async function openChat() {
+  await userEvent.click(await screen.findByRole('button', { name: 'Chat' }));
+  await waitFor(() => expect(screen.getByRole('textbox')).not.toBeDisabled()); // AI status loaded
+}
+
+async function typePrompt(prompt: string) {
+  await userEvent.type(screen.getByRole('textbox'), `${prompt}{Enter}`);
+}
+
 // Switch to the chat view and send a prompt from the composer.
 async function sendPrompt(prompt = 'Draft a receipt') {
-  await userEvent.click(await screen.findByRole('button', { name: 'Chat' }));
-  const input = screen.getByRole('textbox');
-  await waitFor(() => expect(input).not.toBeDisabled()); // AI status loaded
-  await userEvent.type(input, `${prompt}{Enter}`);
+  await openChat();
+  await typePrompt(prompt);
 }
+
+const lastAsk = () => (window.api.ai.ask as any).mock.calls.at(-1)[0];
+
+const pickFolderResult = (res: Record<string, unknown>) => {
+  window.api.tally.pickFolder = vi
+    .fn()
+    .mockResolvedValue({ success: true, canceled: false, candidates: [], error: null, ...res });
+};
 
 describe('Copilot', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.api.automation.createVoucher = vi
+      .fn()
+      .mockResolvedValue({ success: true, voucher_id: 9, voucher_number: 'RCT-9' });
     window.api.ai.getKeyStatus = vi.fn().mockResolvedValue({
       hasKey: true,
       baseUrl: 'https://llm.example/v1',
@@ -139,5 +157,71 @@ describe('Copilot', () => {
     expect(fireEvent.click(await screen.findByText('the web'))).toBe(false);
     await userEvent.click(screen.getByText('Vch 12'));
     expect(await screen.findByText('VOUCHER VIEW')).toBeInTheDocument();
+  });
+
+  it('attaches a Tally folder, sends it with each question, and detaches it', async () => {
+    pickFolderResult({ folder: '/data/Tally', dataDir: '/data/Tally/10000', valid: true });
+    answerWith({ text: 'It holds one company.' });
+    renderCopilot();
+    await openChat();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Tally folder...' }));
+    expect(await screen.findByText('TALLY · 10000')).toBeInTheDocument();
+    expect(screen.getByText('What is in this Tally folder?')).toBeInTheDocument();
+
+    await typePrompt('What is in this Tally folder?');
+    expect(lastAsk().context).toMatchObject({ tally_folder: '/data/Tally/10000' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Detach Tally folder' }));
+    expect(screen.queryByText('TALLY · 10000')).not.toBeInTheDocument();
+    await typePrompt('And my cash?');
+    expect(lastAsk().context).not.toHaveProperty('tally_folder');
+  });
+
+  it('attaches a whole Data folder when it holds several companies', async () => {
+    pickFolderResult({
+      folder: '/data/Tally',
+      dataDir: null,
+      valid: false,
+      candidates: ['10000', '10001'],
+      error: 'This folder holds 2 companies (10000, 10001). Open one company sub-folder instead.',
+    });
+    renderCopilot();
+    await openChat();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Tally folder...' }));
+    expect(await screen.findByText('TALLY · Tally')).toBeInTheDocument();
+    expect(screen.queryByText(/holds 2 companies/)).not.toBeInTheDocument();
+  });
+
+  it('explains a folder without Tally data instead of attaching it', async () => {
+    pickFolderResult({
+      folder: '/home/user/Documents',
+      dataDir: null,
+      valid: false,
+      error: 'No TallyPrime data here (Manager.1800 / TranMgr.1800 not found).',
+    });
+    renderCopilot();
+    await openChat();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Tally folder...' }));
+    expect(await screen.findByText(/No TallyPrime data here/)).toBeInTheDocument();
+    expect(screen.queryByText(/^TALLY ·/)).not.toBeInTheDocument();
+  });
+
+  it('tells the model what became of each proposal', async () => {
+    answerWith({ text: 'Here is the draft.', proposals: [PROPOSAL] });
+    renderCopilot();
+    await sendPrompt();
+    await userEvent.click(await screen.findByRole('button', { name: 'Approve' }));
+    await screen.findByText(`Done: ${PROPOSAL.summary}`);
+
+    answerWith({ text: 'Noted.' });
+    await typePrompt('Thanks');
+    const [, answer] = lastAsk().history;
+    expect(answer).toEqual({
+      role: 'assistant',
+      text: `Here is the draft.\n[Proposal Done: ${PROPOSAL.summary}]`,
+    });
   });
 });
