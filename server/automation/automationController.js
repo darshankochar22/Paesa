@@ -91,10 +91,11 @@ module.exports = {
 
     const res = await voucherService.create(payload);
     if (res && res.success) {
+      // voucherService.create returns the saved row as `voucher`.
       return {
         success: true,
-        voucher_id: res.voucher_id,
-        voucher_number: res.voucher_number,
+        voucher_id: res.voucher ? Number(res.voucher.voucher_id) : undefined,
+        voucher_number: res.voucher ? res.voucher.voucher_number : undefined,
         warnings: v.warnings,
       };
     }
