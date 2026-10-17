@@ -85,6 +85,8 @@ export interface TallyFolderPickResult {
   folder?: string;
   dataDir?: string | null;
   valid?: boolean;
+  // Company sub-folder names when the folder holds several companies.
+  candidates?: string[];
   error?: string | null;
 }
 
