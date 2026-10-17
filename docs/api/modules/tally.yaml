@@ -153,6 +153,26 @@ paths:
                   success: { type: boolean }
                   vouchers: { $ref: '#/components/schemas/ImportSummary' }
                   error: { type: string }
+  /tally/pickFolder:
+    post:
+      operationId: tally.pickFolder
+      tags: [tally]
+      summary: Choose a TallyPrime data folder (Manager.1800 and TranMgr.1800) in the OS folder dialog.
+      description: >
+        Only checks which folders hold the two .1800 files; nothing is decoded. A company
+        folder, or a folder holding exactly one company, is valid and comes back as dataDir.
+        A Tally Data folder holding several companies is not valid for the import screen;
+        candidates then lists the company folder names, and the Copilot can still attach the
+        folder and ask which company to review.
+      x-ipc-channel: 'tally:pickFolder'
+      x-window-api: 'window.api.tally.pickFolder'
+      x-controller: 'tallyController.pickTallyFolder'
+      responses:
+        '200':
+          description: The chosen folder, or success false with an error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FolderPickResult' }
 components:
   schemas:
     EndpointParams:
@@ -211,3 +231,18 @@ components:
         vouchers: { type: number }
         balancedVouchers: { type: number }
         unbalancedVouchers: { type: number }
+    FolderPickResult:
+      type: object
+      properties:
+        success: { type: boolean }
+        canceled: { type: boolean }
+        folder: { type: string, description: The folder the user chose. }
+        dataDir:
+          type: [string, 'null']
+          description: The company folder holding the .1800 files, when there is exactly one.
+        valid: { type: boolean }
+        candidates:
+          type: array
+          items: { type: string }
+          description: Company folder names, when the chosen folder holds several companies.
+        error: { type: [string, 'null'] }

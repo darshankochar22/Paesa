@@ -24,6 +24,14 @@ info:
 
     The query tool's resource enum includes audit_trail, which routes to
     auditTrailService.getAll(company_id, { limit }) read-only (limit defaults to 50).
+
+    It also includes four read-only TallyPrime resources (tally_inspect, tally_preview,
+    tally_verify, tally_ledger_diff; importInsightsService) that read the folder in
+    context.tally_folder and compare it with the books. The folder can only come from the
+    renderer's tally:pickFolder; the model may narrow it to one company by folder name
+    (company_dir) and never sees its full path. Tally data in their results (ledger and party
+    names, amounts, masked GSTINs) is sent to the provider like any other tool result. Without
+    a folder they return an error, which is also what the MCP server gets.
 tags:
   - name: ai
     description: AI Copilot and AI bill scan.
@@ -60,10 +68,13 @@ paths:
                 prompt: { type: string }
                 context:
                   type: object
-                  description: The active company and financial year; tools read them from here.
+                  description: The active company and financial year, and the attached Tally folder if any; tools read them from here.
                   properties:
                     company_id: { type: number }
                     fy_id: { type: number }
+                    tally_folder:
+                      type: string
+                      description: A TallyPrime folder chosen with tally:pickFolder, for the tally_* resources.
                 history:
                   type: array
                   items:
