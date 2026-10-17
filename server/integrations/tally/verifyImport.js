@@ -19,9 +19,10 @@ const norm = (s) =>
     .trim()
     .toLowerCase();
 
-async function reconcile(db, folder, companyId) {
+// `extracted` lets a caller that already decoded the folder skip a second decode.
+async function reconcile(db, folder, companyId, extracted = null) {
   // ---- source (what SHOULD be imported) -----------------------------------
-  const { masters, vouchers } = extractCompany(folder);
+  const { masters, vouchers } = extracted || extractCompany(folder);
   const { parsed } = adapt(masters, { vouchers }, {});
 
   // A voucher is importable iff it has balanced accounting entries.
